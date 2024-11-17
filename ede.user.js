@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.39
+// @version      1.40
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -22,7 +22,7 @@
     // ------ 用户配置 end ------
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.39', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.40', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -104,11 +104,12 @@
     ];
     // 弹幕类型过滤
     const danmakuTypeFilterOpts = {
-        bottom: { id: 'bottom', name: '底部弹幕' },
-        top: { id: 'top', name: '顶部弹幕' },
-        ltr: { id: 'ltr', name: '从左至右' },
-        rtl: { id: 'rtl', name: '从右至左', hidden: true },
-        onlyWhite: { id: 'onlyWhite', name: '彩色弹幕' },
+        bottom: { id: 'bottom', name: '底部弹幕', },
+        top: { id: 'top', name: '顶部弹幕', },
+        ltr: { id: 'ltr', name: '从左至右', },
+        rtl: { id: 'rtl', name: '从右至左', },
+        rolling: { id: 'rolling', name: '滚动弹幕', },
+        onlyWhite: { id: 'onlyWhite', name: '彩色弹幕', },
     };
     const danmakuSource = {
         AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
@@ -188,6 +189,8 @@
         fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1, name: '弹幕大小' },
         fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1, name: '透明度' },
         speed: { id: 'danmakuBaseSpeed', defaultValue: 1, name: '速度' },
+        fontWeight: { id: 'danmakuFontWeight', defaultValue: 400, name: '弹幕粗细' },
+        fontStyle: { id: 'danmakuFontStyle', defaultValue: 0, name: '弹幕斜体' },
         timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
         danmuList: { id: 'danmakuDanmuList', defaultValue: 0, name: '弹幕列表' },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [], name: '屏蔽类型' },
@@ -206,7 +209,6 @@
         osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
         debugShowDanmakuWrapper: { id: 'danmakuDebugShowDanmakuWrapper', defaultValue: false, name: '弹幕容器边界' },
         debugShowDanmakuCtrWrapper: { id: 'danmakuDebugShowDanmakuCtrWrapper', defaultValue: false, name: '按钮容器边界' },
-        debugTypeFilterRtl: { id: 'danmakuDebugTypeFilterRtl', defaultValue: false, name: '屏蔽从右至左' },
         debugReverseDanmu: { id: 'danmakuDebugReverseDanmu', defaultValue: false, name: '反转弹幕方向' },
         debugRandomDanmuColor: { id: 'danmakuDebugRandomDanmuColor', defaultValue: false, name: '随机弹幕颜色' },
         debugForceDanmuWhite: { id: 'danmakuDebugForceDanmuWhite', defaultValue: false, name: '强制弹幕白色' },
@@ -271,6 +273,10 @@
         danmakuOpacityLabel: 'danmakuOpacityLabel',
         danmakuSpeedDiv: 'danmakuSpeedDiv',
         danmakuSpeedLabel: 'danmakuSpeedLabel',
+        danmakuFontWeightDiv: 'danmakuFontWeightDiv',
+        danmakuFontWeightLabel: 'danmakuFontWeightLabel',
+        danmakuFontStyleDiv: 'danmakuFontStyleDiv',
+        danmakuFontStyleLabel: 'danmakuFontStyleLabel',
         timelineOffsetDiv: 'timelineOffsetDiv',
         timelineOffsetLabel: 'timelineOffsetLabel',
         settingsCtrl: 'settingsCtrl',
@@ -391,15 +397,23 @@
             highlight: 'rgba(115, 160, 255, 0.3)', // 尽量接近浏览器控制台选定元素的淡蓝色背景色
             switchActiveColor: '#52b54b',
         },
+        fontStyles: [
+            { id: 'normal', name: '正常' },
+            { id: 'italic', name: '原生斜体' },
+            { id: 'oblique', name: '形变斜体' },
+        ],
     };
-    const os = {
+    const OS = {
         isAndroid: () => /android/i.test(navigator.userAgent),
-        isIOS: () => /iPad|iPhone|iPod/.test(navigator.userAgent),
-        isMacOS: () => /Macintosh|MacIntel/.test(navigator.userAgent),
-        isApple: () => os.isMacOS() || os.isIOS(),
-        isMobile: () => os.isAndroid() || os.isIOS(),
-        isAndroidEmbyNoisyX: () => os.isAndroid() && ApiClient.appVersion().includes('-'),
+        isIOS: () => /iPad|iPhone|iPod/i.test(navigator.userAgent),
+        isMacOS: () => /Macintosh|MacIntel/i.test(navigator.userAgent),
+        isApple: () => OS.isMacOS() || OS.isIOS(),
+        isWindows: () => /compatible|Windows/i.test(navigator.userAgent),
+        isMobile: () => OS.isAndroid() || OS.isIOS(),
+        isUbuntu: () => /Ubuntu/i.test(navigator.userAgent),
+        isAndroidEmbyNoisyX: () => OS.isAndroid() && ApiClient.appVersion().includes('-'),
         isEmbyNoisyX: () => ApiClient.appVersion().includes('-'),
+        isOthers: () => Object.entries(OS).filter(([key, val]) => key !== 'isOthers').every(([key, val]) => !val()),
     };
 
     // ------ 程序内部使用,请勿更改 end ------
@@ -534,7 +548,7 @@
             }
         });
         console.log('Listener初始化完成');
-        if (os.isAndroidEmbyNoisyX()) {
+        if (OS.isAndroidEmbyNoisyX()) {
             console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
             loadDanmaku(LOAD_TYPE.INIT);
         }
@@ -970,7 +984,7 @@
         bulletChartCanvas.width = progressBarWidth;
         bulletChartCanvas.height = chartHeightNum;
         bulletChartCanvas.style.position = 'absolute';
-        bulletChartCanvas.style.top = os.isEmbyNoisyX() ? '-24px' : '-21px';
+        bulletChartCanvas.style.top = OS.isEmbyNoisyX() ? '-24px' : '-21px';
         container.prepend(bulletChartCanvas);
         const ctx = bulletChartCanvas.getContext('2d');
         // 计算每个时间点的弹幕数量
@@ -1122,6 +1136,12 @@
             comments = comments.filter(c => '#ffffff' === c.style.color.toLowerCase().slice(0, 7));
             idArray.splice(idArray.indexOf(danmakuTypeFilterOpts.onlyWhite.id), 1);
         }
+        // 过滤滚动弹幕
+        if (idArray.includes(danmakuTypeFilterOpts.rolling.id)) {
+            comments = comments.filter(c => danmakuTypeFilterOpts.ltr.id !== c.mode
+                && danmakuTypeFilterOpts.rtl.id !== c.mode);
+            idArray.splice(idArray.indexOf(danmakuTypeFilterOpts.rolling.id), 1);
+        }
         // 过滤特定模式的弹幕
         if (idArray.length > 0) {
             comments = comments.filter(c => !idArray.includes(c.mode));
@@ -1200,6 +1220,8 @@
                     : window.screen.height / 1080) * 18 * fontSizeRate
             );
         }
+        const fontWeight = lsGetItem(lsKeys.fontWeight.id);
+        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
         // 弹幕透明度
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16);
         // 时间轴偏移秒数
@@ -1221,13 +1243,13 @@
                     mode,
                     time: values[0] * 1 + timelineOffset,
                     style: {
-                        fontSize: `${fontSize}px`,
-                        color: `#${color}`,
+                        // fontSize: `${fontSize}px`,
+                        color: `#${color}`, // dom
                         textShadow:
                             color === '00000' ? '-1px -1px #fff, -1px 1px #fff, 1px -1px #fff, 1px 1px #fff' : '-1px -1px #000, -1px 1px #000, 1px -1px #000, 1px 1px #000',
 
-                        font: `${fontSize}px sans-serif`,
-                        fillStyle: `#${color}`,
+                        font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
+                        fillStyle: `#${color}`, // canvas
                         strokeStyle: color === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`,
                         lineWidth: 2.0,
                     }, // 以下为自定义属性
@@ -1351,7 +1373,10 @@
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontSizeRate.name}: </label>
                         <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuSizeLabel}" style="width: 4em;"></label>
+                        <label>
+                            <label id="${eleIds.danmakuSizeLabel}" style="width: 4em;"></label>
+                            <label>倍</label>
+                        </label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontOpacity.name}: </label>
@@ -1361,7 +1386,20 @@
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.speed.name}: </label>
                         <div id="${eleIds.danmakuSpeedDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuSpeedLabel}" style="width: 4em;"></label>
+                        <label>
+                            <label id="${eleIds.danmakuSpeedLabel}" style="width: 4em;"></label>
+                            <label>倍</label>
+                        </label>
+                    </div>
+                    <div style="${styles.embySlider}">
+                        <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontWeight.name}: </label>
+                        <div id="${eleIds.danmakuFontWeightDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuFontWeightLabel}" style="width: 4em;"></label>
+                    </div>
+                    <div style="${styles.embySlider}">
+                        <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontStyle.name}: </label>
+                        <div id="${eleIds.danmakuFontStyleDiv}" style="width: 15.5em; text-align: center;"></div>
+                        <label id="${eleIds.danmakuFontStyleLabel}" style="width: 4em;">正常</label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.timelineOffset.name}: </label>
@@ -1405,6 +1443,17 @@
         getById(eleIds.danmakuSpeedDiv, container).append(embySlider(
             { labelId: eleIds.danmakuSpeedLabel, key: lsKeys.speed.id }
             , { value: lsGetItem(lsKeys.speed.id) }, onSliderChange, onSliderChangeLabel
+        ));
+        getById(eleIds.danmakuFontWeightDiv, container).append(embySlider(
+            { labelId: eleIds.danmakuFontWeightLabel, key: lsKeys.fontWeight.id }
+            , { value: lsGetItem(lsKeys.fontWeight.id), min: 100, max: 1000, step: 100 }
+            , onSliderChange, onSliderChangeLabel
+        ));
+        getById(eleIds.danmakuFontStyleDiv, container).append(embySlider(
+            { labelId: eleIds.danmakuFontStyleLabel, key: lsKeys.fontStyle.id }
+            , { value: lsGetItem(lsKeys.fontStyle.id), min: 0, max: 2, step: 1 }
+            , (val, props) => onSliderChange(val, props, null, styles.fontStyles[val].name)
+            , (val, props) => onSliderChangeLabel(styles.fontStyles[val].name, props)
         ));
         // 弹幕时间轴偏移秒数
         const btnContainer = getById(eleIds.timelineOffsetDiv, container);
@@ -1605,7 +1654,7 @@
                 <div id="${eleIds.danmuListDiv}" style="margin: 1% 0;"></div>
                 <textarea id="${eleIds.danmuListText}" readOnly style="display: none;resize: vertical;width: 100%" rows="8" 
                     is="emby-textarea" class="txtOverview emby-textarea"></textarea>
-                <div class="${classes.embyFieldDesc}">列表展示格式为: [序号][分:秒] : 弹幕正文 [来源平台][用户ID][弹幕CID]</div>
+                <div class="${classes.embyFieldDesc}">列表展示格式为: [序号][分:秒] : 弹幕正文 [来源平台][用户ID][弹幕CID][模式]</div>
             </div>
             <div id="${eleIds.extInfoCtrlDiv}" style="margin: 0.6em 0;"></div>
             <div id="${eleIds.extInfoDiv}" hidden>
@@ -2017,17 +2066,6 @@
             if (!checked) { return; }
             console.log(`按钮容器(#${eleIds.danmakuCtr})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
         }));
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugTypeFilterRtl.name }, lsGetItem(lsKeys.debugTypeFilterRtl.id), (checked) => {
-            lsSetItem(lsKeys.debugTypeFilterRtl.id, checked);
-            let comments = [...window.ede.danmuCache[window.ede.episode_info.episodeId]];
-            if (checked) {
-                comments = comments.filter(c => c.p.split(',')[1] !== '6');
-                console.log('已' + lsKeys.debugTypeFilterRtl.name);
-            } else {
-                console.log('已取消' + lsKeys.debugTypeFilterRtl.name);
-            }
-            createDanmaku(comments);
-        }));
         debugWrapper.append(embyCheckbox({ label: lsKeys.debugReverseDanmu.name }, lsGetItem(lsKeys.debugReverseDanmu.id), (checked) => {
             lsSetItem(lsKeys.debugReverseDanmu.id, checked);
             const comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
@@ -2147,7 +2185,7 @@
     function buildOpenSourceLicense(container) {
         const openSourceWrapper = getById(eleIds.openSourceLicenseDiv, container);
         Object.entries(openSourceLicense).map(([key, val]) => {
-            openSourceWrapper.append(embyALink(val.url, [key, val.name, val.version, val.license].join(':')));
+            openSourceWrapper.append(embyALink(val.url, [key, val.name, val.version, val.license].join(' : ')));
         });
     }
 
@@ -2393,6 +2431,7 @@
                 + (c.source ? ` [${c.source}]` : '')
                 + (c.originalUserId ? `[${c.originalUserId}]` : '')
                 + (c.cid ? `[${c.cid}]` : '')
+                + `[${c.mode}]`
             ).join('\n');
     }
 
@@ -2422,8 +2461,8 @@
         console.log(`当前弹幕显示来源为: ${JSON.stringify(checkList.map(s => idNameMap.get(s)))}`);
     }
 
-    function onSliderChange(val, props, needReload = true) {
-        onSliderChangeLabel(val, props);
+    function onSliderChange(val, props, needReload = true, labelVal) {
+        onSliderChangeLabel(labelVal ? labelVal : val, props);
         if (props?.key && lsCheckSet(props.key, val)) {
             console.log(`${props.key} changed to ${val}`);
             if (needReload) { loadDanmaku(LOAD_TYPE.RELOAD); }
@@ -2730,7 +2769,7 @@
         aEle.textContent = text ?? href;
         aEle.target = '_blank';
         aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
-        if (os.isMobile()) {
+        if (OS.isMobile()) {
             aEle.addEventListener('click', (event) => {
                 event.preventDefault();
                 navigator.clipboard.writeText(href).then(() => {
@@ -2904,7 +2943,7 @@
         function cancelLongPress() {
             clearTimeout(longPressTimeout);
         }
-        const isMobile = os.isMobile();
+        const isMobile = OS.isMobile();
         const startEvent = isMobile ? 'touchstart' : 'mousedown';
         const endEvent = isMobile ? 'touchend' : 'mouseup';
         if (target.getAttribute('startFlag') !== '1') {
@@ -2924,7 +2963,7 @@
 
     function initCss() {
         // 修复emby小秘版播放过程中toast消息提示框不显示问题
-        if (os.isEmbyNoisyX()) {
+        if (OS.isEmbyNoisyX()) {
             const existingStyle = document.querySelector('style[css-emby-noisyx-fix]');
             if (!existingStyle) {
                 const style = document.createElement('style');
@@ -2963,7 +3002,7 @@
         console.log('播放页不存在 video 标签,适配器处理开始');
         _media = document.createElement('video');
         // !!! Apple 设备上此属性必须存在,否则 currentTime = 0 无法更新; 而其他设备反而不能有
-        if (os.isApple()) { _media.src = ''; }
+        if (OS.isApple()) { _media.src = ''; }
         _media.style.display = 'none';
         _media.id = eleIds.h5VideoAdapter;
         _media.classList.add('htmlvideoplayer', 'moveUpSubtitles');
