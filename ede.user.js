@@ -677,7 +677,8 @@
             subjectId = parseInt(bangumiUrl.match(/\/(\d+)$/)[1]);
         }
         const episodeIndex = episode_info?.episodeIndex;
-        const bangumiInfo = { animeId, bangumiUrl, subjectId, episodeIndex, bangumiEpsRes, _bangumi_key };
+        const bgmEpisodeIndex = episode_info?.bgmEpisodeIndex;
+        const bangumiInfo = { animeId, bangumiUrl, subjectId, episodeIndex, bgmEpisodeIndex, bangumiEpsRes, _bangumi_key };
         window.ede.bangumiInfo = bangumiInfo;
         localStorage.setItem(bangumiInfo._bangumi_key, JSON.stringify(bangumiInfo));
         return bangumiInfo;
@@ -685,7 +686,8 @@
 
     async function putBangumiEpStatus(token) {
         const bangumiInfo = await getEpisodeBangumiRel();
-        const { subjectId, episodeIndex, } = bangumiInfo;
+        const { subjectId, bgmEpisodeIndex, } = bangumiInfo;
+        const episodeIndex = bgmEpisodeIndex ?? bangumiInfo.episodeIndex;
         console.log('准备修改 Bangumi 条目收藏状态为在看, 如果不存在则创建, 如果存在则修改');
         let body = { type: 3 }; // 在看状态
         await fetchJson(bangumiApi.postUserCollection(subjectId), { token, body });
@@ -695,9 +697,9 @@
             bangumiInfo.bangumiEpsRes = bangumiEpsRes;
             const bangumiEpColl = bangumiEpsRes.data[episodeIndex];
             if (!bangumiEpColl) { throw new Error('未匹配到 bangumiEpColl'); }
-            bangumiInfo.episodeIndex = episodeIndex;
+            // bangumiInfo.episodeIndex = episodeIndex;
         }
-        const bangumiEpColl = bangumiInfo.bangumiEpsRes.data[bangumiInfo.episodeIndex];
+        const bangumiEpColl = bangumiInfo.bangumiEpsRes.data[episodeIndex];
         const bangumiEp = bangumiEpColl.episode;
         if (bangumiEpColl.type === 2) {
             console.log('Bangumi 已是看过状态,跳过更新', bangumiEp);
@@ -813,7 +815,8 @@
         if (selectedSeasonInfo) {
             const newEpisode = episode + selectedSeasonInfo.episodeOffset;
             console.log(`命中seasonInfo缓存: ${selectedSeasonInfo.name},偏移量: ${selectedSeasonInfo.episodeOffset},集: ${newEpisode}`);
-            return await fetchSearchEpisodes(selectedSeasonInfo.name, newEpisode);
+            const animaInfo = await fetchSearchEpisodes(selectedSeasonInfo.name, newEpisode);
+            return { animaInfo, newEpisode, };
         }
         return null;
     }
@@ -845,10 +848,15 @@
         const { _season_key, animeName, episode, seriesOrMovieId} = itemInfoMap;
         console.log(`[自动匹配] 标题名: ${animeName}` + (episode ? `,章节过滤: ${episode}` : ''));
         let animeOriginalTitle = '';
+        let animaInfo;
         // 使用缓存中的剧集标题与集偏移量进行匹配
-        let animaInfo = await lsSeasonSearchEpisodes(_season_key, episode);
-        if (animaInfo && animaInfo.animes.length > 0) {
-            return { animeOriginalTitle, animaInfo, };
+        let animaRes = await lsSeasonSearchEpisodes(_season_key, episode);
+        if (animaRes) {
+            animaInfo = animaRes.animaInfo;
+            const bgmEpisodeIndex = animaRes.newEpisode - 1;
+            if (animaInfo && animaInfo.animes.length > 0) {
+                return { animeOriginalTitle, animaInfo, bgmEpisodeIndex, };
+            }
         }
         // 默认匹配方式
         animaInfo = await fetchSearchEpisodes(animeName, episode);
@@ -889,10 +897,12 @@
             }
         }
         selectAnime_id = parseInt(selectAnime_id) - 1;
+        const episodeIndex = isNaN(episode) ? 0 : episode - 1;
         const episodeInfo = {
             episodeId: animaInfo.animes[selectAnime_id].episodes[0].episodeId,
             episodeTitle: animaInfo.animes[selectAnime_id].episodes[0].episodeTitle,
-            episodeIndex: isNaN(episode) ? 0 : episode - 1,
+            episodeIndex,
+            bgmEpisodeIndex: res.bgmEpisodeIndex ?? episodeIndex,
             animeId: animaInfo.animes[selectAnime_id].animeId,
             animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
             animeOriginalTitle,
