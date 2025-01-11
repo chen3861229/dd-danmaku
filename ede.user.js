@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.40
+// @version      1.41
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -20,11 +20,12 @@
     // let corsProxy = 'https://api.9-ch.com/cors/';
     let corsProxy = 'https://ddplay-api.7o7o.cc/cors/';
     // ------ 用户配置 end ------
+    // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.40', name: 'Emby Danmaku Extension(Based on 1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.41', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
-        jellyfinFork: { version: '1.45', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
+        jellyfinFork: { version: '1.51', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
         danmakuFork: { version: 'v1.2.1', name: 'Danmaku(Based on 2.0.6)', license: 'MIT License', url: 'https://github.com/lanytcc/Danmaku' },
         dandanplayApi: { version: 'v2', name: '弹弹 play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
@@ -89,6 +90,7 @@
         person: 'person',
         sentiment_very_satisfied: 'sentiment_very_satisfied',
         check: 'check',
+        edit: 'edit',
     };
     // 此 id 等同于 danmakuTabOpts 内的弹幕信息的 id
     const currentDanmakuInfoContainerId = 'danmakuTab2';
@@ -153,9 +155,14 @@
         system: '[系统通知] : ',
     };
     const hasToastPrefixes = (comment, prefixes) => Object.values(prefixes).some(prefix => comment.text.startsWith(prefix));
-    const getDanmakuComments = (ede) => ede.danmaku?.comments.filter(c => !hasToastPrefixes(c, toastPrefixes)) ?? [];
+    const getDanmakuComments = (ede) => {
+        if (ede.danmaku.comments) {
+          return ede.danmaku.comments.filter(c => !hasToastPrefixes(c, toastPrefixes));
+        }
+        return [];
+      };
     const danmuListOpts = [
-        { id: '0', name: '不启用' , onChange: () => [] },
+        { id: '0', name: '不展示' , onChange: () => [] },
         { id: '1', name: '屏中', onChange: (ede) => ede.danmaku._.runningList },
         { id: '2', name: '所有', onChange: (ede) => ede.commentsParsed },
         { id: '3', name: '已加载', onChange: getDanmakuComments },
@@ -192,6 +199,7 @@
         fontWeight: { id: 'danmakuFontWeight', defaultValue: 400, name: '弹幕粗细' },
         fontStyle: { id: 'danmakuFontStyle', defaultValue: 0, name: '弹幕斜体' },
         timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
+        fontFamily: { id: 'danmakuFontFamily', defaultValue: 'sans-serif', name: '字体' },
         danmuList: { id: 'danmakuDanmuList', defaultValue: 0, name: '弹幕列表' },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [], name: '屏蔽类型' },
         sourceFilter: { id: 'danmakuSourceFilter', defaultValue: [], name: '屏蔽来源平台' },
@@ -244,7 +252,7 @@
         danmakuEpisodeNumSelect: 'danmakuEpisodeNumSelect',
         searchImgDiv: 'searchImgDiv',
         searchImg: 'searchImg',
-        extConmentSearchDiv: 'extConmentSearchDiv',
+        extCommentSearchDiv: 'extCommentSearchDiv',
         extUrlsDiv: 'extUrlsDiv',
         currentMatchedDiv: 'currentMatchedDiv',
         filteringDanmaku: 'filteringDanmaku',
@@ -279,6 +287,12 @@
         danmakuFontStyleLabel: 'danmakuFontStyleLabel',
         timelineOffsetDiv: 'timelineOffsetDiv',
         timelineOffsetLabel: 'timelineOffsetLabel',
+        fontFamilyCtrl: 'fontFamilyCtrl',
+        fontFamilyDiv: 'fontFamilyDiv',
+        fontFamilyLabel: 'fontFamilyLabel',
+        fontFamilySelect: 'fontFamilySelect',
+        fontFamilyInput: 'fontFamilyInput',
+        fontStylePreview: 'fontStylePreview',
         settingsCtrl: 'settingsCtrl',
         settingsText: 'settingsText',
         settingsImportBtn: 'settingsImportBtn',
@@ -359,6 +373,8 @@
         formDialogFooter: 'formDialogFooter',
         formDialogFooterItem: 'formDialogFooterItem',
         videoOsdTitle: 'videoOsdTitle', // 播放页媒体次级标题
+        videoOsdBottomButtons: 'videoOsdBottom-buttons', // 新老客户端播放页通用的底部按钮,但在 TV 下是 hide
+        videoOsdBottomButtonsTopRight: 'videoOsdBottom-buttons-topright', // 新客户端播放页右上方的按钮
         videoOsdBottomButtonsRight: 'videoOsdBottom-buttons-right', // 老客户端上的右侧按钮
         videoOsdPositionSliderContainer: 'videoOsdPositionSliderContainer',
         cardImageIcon: 'cardImageIcon',
@@ -368,7 +384,8 @@
         collapseContentNav: 'collapseContent navDrawerCollapseContent',
         embyLabel: 'inputLabel',
         embyInput: 'emby-input emby-input-smaller',
-        embySelectWrapper: 'emby-select-wrapper emby-select-wrapper-smaller',
+        embySelectWrapper: 'emby-select-wrapper',
+        embySelectTv: 'emby-select-tv', // highlight on tv layout
         embyCheckboxList: 'featureList', // 'checkboxList'
         embyFieldDesc: 'fieldDescription',
         embyTabsMenu: 'headerMiddle headerSection sectionTabs headerMiddle-withSectionTabs',
@@ -450,9 +467,9 @@
             this.episode_info = null;
             this.ob = null;
             this.loading = false;
-            this.danmuCache = {}; // 只包含 conment 未解析
-            this.commentsParsed = []; // 包含 conment 和 extConment 解析后全量
-            this.extConmentCache = {}; // 只包含 extConment 未解析
+            this.danmuCache = {}; // 只包含 comment 未解析
+            this.commentsParsed = []; // 包含 comment 和 extComment 解析后全量
+            this.extCommentCache = {}; // 只包含 extComment 未解析
             this.destroyIntervalIds = [];
             this.searchDanmakuOpts = {}; // 手动搜索变量
             this.appLogAspect = null; // 应用日志切面
@@ -569,19 +586,27 @@
         }
     
         // 弹幕按钮父容器 div,延时判断,精确 dom query 时播放器 UI 小概率暂未渲染
-        const mediaQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols .videoOsdBottom-buttons`;
-        waitForElement(mediaQueryStr, (parent) => {
+        const ctrlWrapperQueryStr = `${mediaContainerQueryStr} .videoOsdBottom-maincontrols`;
+        waitForElement(ctrlWrapperQueryStr, (wrapper) => {
+            const commonWrapper = getByClass(classes.videoOsdBottomButtons += notHide, wrapper);
+            if (commonWrapper) {
+                wrapper = commonWrapper;
+            } else {
+                // Emby 客户端启动时会检测鼠标设备,无鼠标时, commonWrapper 将会 hide
+                // 手动模拟无鼠标步骤为浏览器页签打开后不要动鼠标,仅使用键盘操作
+                wrapper = getByClass(classes.videoOsdBottomButtonsTopRight, wrapper);
+            }
             // 在老客户端上存在右侧按钮,在右侧按钮前添加
-            const rightButtons = getByClass(classes.videoOsdBottomButtonsRight, parent);
+            const rightButtons = getByClass(classes.videoOsdBottomButtonsRight, wrapper);
             const menubar = document.createElement('div');
             menubar.id = eleIds.danmakuCtr;
             if (!window.ede.episode_info) {
                 menubar.style.opacity = 0.5;
             }
             if (rightButtons) {
-                parent.insertBefore(menubar, rightButtons);
+                wrapper.insertBefore(menubar, rightButtons);
             } else {
-                parent.append(menubar);
+                wrapper.append(menubar);
             }
             mediaBtnOpts.forEach(opt => {
                 menubar.appendChild(embyButton(opt, opt.onClick));
@@ -591,7 +616,7 @@
     }
 
     async function getEmbyItemInfo() {
-        return window.require(['playbackManager']).then((items) => items?.[0].currentItem());
+        return require(['playbackManager']).then((items) => items[0].currentItem());
     }
 
     async function fatchEmbyItemInfo(id) {
@@ -623,13 +648,24 @@
             });
     }
 
-    async function fetchExtcommentActual(extUrl) {
+    async function fetchExtcommentActual(extUrl, comments) {
+        if (!extUrl) {
+            return null;
+        }
         let extComments  = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
         if (extComments.length === 0) { // 只重试一遍进行弹弹 play 服务器缓存覆盖加载触发
             extComments = (await fetchJson(dandanplayApi.getExtcomment(extUrl))).comments;
         }
         extComments.map(c => c.fromUrl = extUrl);
-        window.ede.extConmentCache[extUrl] = extComments;
+        const episodeId = window.ede.episode_info.episodeId; 
+        if (!window.ede.extCommentCache[episodeId]) {
+            window.ede.extCommentCache = { [episodeId]: {} };
+        }
+        if (comments) {
+            console.log(`取差集并覆盖: ${extUrl}`);
+            extComments = extComments.filter(extC => !comments.some(c => c.cid === extC.cid));
+        }
+        window.ede.extCommentCache[episodeId][extUrl] = extComments;
         return extComments;
     }
 
@@ -644,7 +680,7 @@
         const bangumiPostPercent = lsGetItem(lsKeys.bangumiPostPercent.id);
         const bangumiToken = lsGetItem(lsKeys.bangumiToken.id);
         if (lsGetItem(lsKeys.bangumiEnable.id) && bangumiToken
-            && pct >= bangumiPostPercent && !!window.ede.episode_info?.episodeId
+            && pct >= bangumiPostPercent && window.ede.episode_info.episodeId
         ) {
             console.log(`大于需提交的设定百分比: ${bangumiPostPercent}%`);
             const { animeTitle, episodeTitle } = window.ede.episode_info;
@@ -666,9 +702,9 @@
         if (bangumiInfoLs) {
             bangumiInfoLs = JSON.parse(bangumiInfoLs);
         }
-        let bangumiEpsRes = bangumiInfoLs?.bangumiEpsRes;
-        let subjectId = bangumiInfoLs?.subjectId;
-        let bangumiUrl = bangumiInfoLs?.bangumiUrl;
+        let bangumiEpsRes = bangumiInfoLs ? bangumiInfoLs.bangumiEpsRes : null;
+        let subjectId = bangumiInfoLs ? bangumiInfoLs.subjectId : null;
+        let bangumiUrl = bangumiInfoLs ? bangumiInfoLs.bangumiUrl : null;
         const animeId = episode_info.animeId;
         if (!subjectId) {
             if (!animeId) { throw new Error('未获取到 animeId'); }
@@ -676,8 +712,8 @@
             if (!bangumiUrl) { throw new Error('未请求到 bangumiUrl'); }
             subjectId = parseInt(bangumiUrl.match(/\/(\d+)$/)[1]);
         }
-        const episodeIndex = episode_info?.episodeIndex;
-        const bgmEpisodeIndex = episode_info?.bgmEpisodeIndex;
+        const episodeIndex = episode_info ? episode_info.episodeIndex : null;
+        const bgmEpisodeIndex = episode_info ? episode_info.bgmEpisodeIndex : null;
         const bangumiInfo = { animeId, bangumiUrl, subjectId, episodeIndex, bgmEpisodeIndex, bangumiEpsRes, _bangumi_key };
         window.ede.bangumiInfo = bangumiInfo;
         localStorage.setItem(bangumiInfo._bangumi_key, JSON.stringify(bangumiInfo));
@@ -687,7 +723,7 @@
     async function putBangumiEpStatus(token) {
         const bangumiInfo = await getEpisodeBangumiRel();
         const { subjectId, bgmEpisodeIndex, } = bangumiInfo;
-        const episodeIndex = bgmEpisodeIndex ?? bangumiInfo.episodeIndex;
+        const episodeIndex = bgmEpisodeIndex ? bgmEpisodeIndex : bangumiInfo.episodeIndex;
         console.log('准备修改 Bangumi 条目收藏状态为在看, 如果不存在则创建, 如果存在则修改');
         let body = { type: 3 }; // 在看状态
         await fetchJson(bangumiApi.postUserCollection(subjectId), { token, body });
@@ -826,7 +862,9 @@
         let animaInfo = await fetchSearchEpisodes(animeName);
         if (animaInfo.animes.length > 0) {
             console.log(`移除章节过滤,自动匹配成功,转换为目标章节索引 0`);
-            const episodeInfo = animaInfo.animes[0].episodes[episodeIndex - 1 ?? 0];
+            if (isNaN(episodeIndex)) { episodeIndex = 0; }
+            // const episodeInfo = animaInfo.animes[0].episodes[episodeIndex - 1 ?? 0];
+            const episodeInfo = animaInfo.animes[0].episodes[episodeIndex];
             if (!episodeInfo) {
                 return null;
             }
@@ -902,7 +940,7 @@
             episodeId: animaInfo.animes[selectAnime_id].episodes[0].episodeId,
             episodeTitle: animaInfo.animes[selectAnime_id].episodes[0].episodeTitle,
             episodeIndex,
-            bgmEpisodeIndex: res.bgmEpisodeIndex ?? episodeIndex,
+            bgmEpisodeIndex: res.bgmEpisodeIndex ? res.bgmEpisodeIndex : episodeIndex,
             animeId: animaInfo.animes[selectAnime_id].animeId,
             animeTitle: animaInfo.animes[selectAnime_id].animeTitle,
             animeOriginalTitle,
@@ -981,8 +1019,11 @@
     }
 
     function buildProgressBarChart(chartHeightNum) {
-        getById(eleIds.progressBarLineChart)?.remove();
-        const comments = window.ede?.danmaku?.comments;
+        const chartEle = getById(eleIds.progressBarLineChart);
+        if (chartEle) {
+            chartEle.remove();
+        }
+        const comments = window.ede.danmaku ? window.ede.danmaku.comments : [];
         const container = getByClass(classes.videoOsdPositionSliderContainer);
         if (!comments || !container || (comments && comments.length === 0)) {
             return;
@@ -1062,12 +1103,12 @@
                 (episodeId) => {
                     if (episodeId) {
                         const commentsCache = window.ede.danmuCache[episodeId];
-                        const extConmentCache = window.ede.extConmentCache;
-                        const extConmentsLength = Object.keys(extConmentCache).length;
-                        if (loadType === LOAD_TYPE.RELOAD && (commentsCache || extConmentsLength > 0)) {
+                        const extCommentCache = window.ede.extCommentCache[episodeId] || {};
+                        const extCommentsLength = Object.keys(extCommentCache).length;
+                        if (loadType === LOAD_TYPE.RELOAD && (commentsCache || extCommentsLength > 0)) {
                             let allComments = commentsCache;
-                            if (extConmentsLength > 0) {
-                                allComments = commentsCache.concat(...Object.values(extConmentCache));
+                            if (extCommentsLength > 0) {
+                                allComments = commentsCache.concat(...Object.values(extCommentCache));
                                 console.log(`使用 ede 缓存,附加前总量: ${commentsCache.length}, 附加后总量: ${allComments.length}`);
                             }
                             createDanmaku(allComments)
@@ -1081,9 +1122,9 @@
                             fetchComment(episodeId).then((comments) => {
                                 window.ede.danmuCache[episodeId] = comments;
                                 let allComments = comments;
-                                if (extConmentsLength > 0) {
+                                if (extCommentsLength > 0) {
                                     Promise.all(
-                                        Object.entries(extConmentCache).map(([key, val]) => fetchExtcommentActual(key))
+                                        Object.entries(extCommentCache).map(([key, val]) => fetchExtcommentActual(key, allComments))
                                     ).then((results) => {
                                         allComments = allComments.concat(...results);
                                         console.log(`使用 fetch 重取,附加前总量: ${comments.length}, 附加后总量: ${allComments.length}`);
@@ -1201,7 +1242,7 @@
     function danmakuKeywordsFilter(comments) {
         if (!lsGetItem(lsKeys.filterKeywordsEnable.id)) { return comments; }
         const keywords = lsGetItem(lsKeys.filterKeywords.id)
-            ?.split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0 && !k.startsWith('// '));
+            .split(/\r?\n/).map(k => k.trim()).filter(k => k.length > 0 && !k.startsWith('// '));
         if (keywords.length === 0) { return comments; }
         const cKeys = [ 'text', ...Object.keys(showSource) ];
         return comments.filter(comment =>
@@ -1220,9 +1261,10 @@
         // 弹幕大小
         const fontSizeRate = lsGetItem(lsKeys.fontSizeRate.id);
         let fontSize = 25;
-        const h3Ele = getByClass(classes.videoOsdTitle);
-        if (h3Ele) {
-            fontSize = parseFloat(getComputedStyle(h3Ele).fontSize.replace('px', '')) * fontSizeRate;
+        // 播放页媒体次级标题 h3 元素
+        const fontSizeReferent = getByClass(classes.videoOsdTitle);
+        if (fontSizeReferent) {
+            fontSize = parseFloat(getComputedStyle(fontSizeReferent).fontSize.replace('px', '')) * fontSizeRate;
         } else {
             fontSize = Math.round(
                 (window.screen.height > window.screen.width 
@@ -1232,8 +1274,9 @@
         }
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
         const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        const fontFamily = lsGetItem(lsKeys.fontFamily.id);
         // 弹幕透明度
-        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16);
+        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
         // 时间轴偏移秒数
         const timelineOffset = lsGetItem(lsKeys.timelineOffset.id);
         const sourceUidReg = /\[(.*)\](.*)/;
@@ -1247,25 +1290,21 @@
                 const mode = { 6: 'ltr', 1: 'rtl', 5: 'top', 4: 'bottom' }[values[1]];
                 if (!mode) return null;
                 // 弹幕颜色+透明度
-                const color = `000000${Number(values[2]).toString(16)}${fontOpacity}`.slice(-8);
+                const baseColor = Number(values[2]).toString(16).padStart(6, '0');
+                const color = `${baseColor}${fontOpacity}`; // 生成8位十六进制颜色
+                const shadowColor = baseColor === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`;
+                const sourceUidMatches = values[3].match(sourceUidReg);
+                const sourceId = sourceUidMatches && sourceUidMatches[1] ? sourceUidMatches[1] : danmakuSource.DanDanPlay.id;
+                const originalUserId = sourceUidMatches && sourceUidMatches[2] ? sourceUidMatches[2] : values[3];
                 const cmt = {
                     text: $comment.m,
                     mode,
                     time: values[0] * 1 + timelineOffset,
-                    style: {
-                        // fontSize: `${fontSize}px`,
-                        color: `#${color}`, // dom
-                        textShadow:
-                            color === '00000' ? '-1px -1px #fff, -1px 1px #fff, 1px -1px #fff, 1px 1px #fff' : '-1px -1px #000, -1px 1px #000, 1px -1px #000, 1px 1px #000',
-
-                        font: `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`,
-                        fillStyle: `#${color}`, // canvas
-                        strokeStyle: color === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`,
-                        lineWidth: 2.0,
-                    }, // 以下为自定义属性
+                    style: getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily),
+                    // 以下为自定义属性
                     [showSource.cid.id]: $comment.cid,
-                    [showSource.source.id]: values[3].match(sourceUidReg)?.[1] || danmakuSource.DanDanPlay.id,
-                    [showSource.originalUserId.id]: values[3].match(sourceUidReg)?.[2] || values[3],
+                    [showSource.source.id]: sourceId,
+                    [showSource.originalUserId.id]: originalUserId,
                 };
                 if (showSourceIds.length > 0) {
                     cmt.originalText = cmt.text;
@@ -1276,6 +1315,18 @@
             })
             .filter((x) => x)
             .sort((a, b) => a.time - b.time);
+    }
+
+    function getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily) {
+        return {
+            color: `#${color}`, // dom
+            textShadow: `-1px -1px ${shadowColor}, -1px 1px ${shadowColor}, 1px -1px ${shadowColor}, 1px 1px ${shadowColor}`,
+
+            font: `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`,
+            fillStyle: `#${color}`, // canvas
+            strokeStyle: shadowColor,
+            lineWidth: 2.0,
+        };
     }
 
     function toastByDanmaku(text, type) {
@@ -1308,7 +1359,10 @@
     }
 
     function createDialog() {
-        require(['emby-select', 'emby-checkbox', 'emby-slider', 'emby-textarea', 'emby-collapse', ]);
+        require([
+            'emby-select', 'emby-checkbox', 'emby-slider', 'emby-textarea', 'emby-collapse'
+            , 'emby-button', 
+        ]);
         const html = `<div id="${eleIds.dialogContainer}"></div>`;
         embyDialog({ html, buttons: [{ name: '关闭' }] });
         waitForElement('#' + eleIds.dialogContainer, afterEmbyDialogCreated);
@@ -1416,6 +1470,33 @@
                         <div id="${eleIds.timelineOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
                         <label id="${eleIds.timelineOffsetLabel}" style="width: 4em;"></label>
                     </div>
+                    <div is="emby-collapse" title="弹幕字体样式" data-expanded="false">
+                        <div class="${classes.collapseContentNav}">
+                            <div id="${eleIds.fontFamilyCtrl}" style="margin: 0.6em 0;"></div>
+                            <div style="${styles.embySlider}">
+                                <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontFamily.name}: </label>
+                                <div id="${eleIds.fontFamilyDiv}" class="${classes.embySelectWrapper}"></div>
+                                <label id="${eleIds.fontFamilyLabel}" style="width: 10em;"></label>
+                            </div>
+                            <div style="max-width: 31.5em;">
+                                <label class="${classes.embyLabel}" style="width: 5em;">弹幕外观: </label>
+                                <div id="${eleIds.fontStylePreview}"
+                                    class="flex justify-content-center"
+                                    style="border: .08em solid gray;color: black;border-radius: .24em;padding: .5em;;background-color: #6a96bd;">
+                                    简中/繁體/English/こんにちはウォルド/</br>
+                                    ABC/abc/012/~!@<?>[]/《？》【】</br>
+                                    ☆*: .｡. o(≧▽≦)o .｡.:*☆</br>
+                                    😆👏🎈🍋🌞⁉️🎉</br>
+                                </div>
+                                <div class="${classes.embyFieldDesc}">
+                                    这些设置会影响此设备上的弹幕外观,此处固定为 dom 引擎,
+                                    canvas 引擎效果一样,此处不做切换展示,
+                                    因为弹幕大小是根据播放页次标题动态计算的,此处不做参考,
+                                    选择或输入的字体是否有效取决于设备本身的字体库,没有网络加载
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div id="${eleIds.settingsCtrl}" style="margin: 0.6em 0;"></div>
                     <textarea id="${eleIds.settingsText}" style="display: none;resize: vertical;width: 100%" rows="20" 
                         is="emby-textarea" class="txtOverview emby-textarea"></textarea>
@@ -1462,7 +1543,7 @@
         getById(eleIds.danmakuFontStyleDiv, container).append(embySlider(
             { labelId: eleIds.danmakuFontStyleLabel, key: lsKeys.fontStyle.id }
             , { value: lsGetItem(lsKeys.fontStyle.id), min: 0, max: 2, step: 1 }
-            , (val, props) => onSliderChange(val, props, null, styles.fontStyles[val].name)
+            , (val, props) => onSliderChange(val, props, true, styles.fontStyles[val].name)
             , (val, props) => onSliderChangeLabel(styles.fontStyles[val].name, props)
         ));
         // 弹幕时间轴偏移秒数
@@ -1480,6 +1561,7 @@
                 }
             }));
         });
+        buildFontFamilySetting(container);
         // 配置 JSON 导入,导出
         buildSettingsBackup(container);
     }
@@ -1515,9 +1597,138 @@
         );
     }
 
+    function buildFontFamilySetting() {
+        const fontFamilyVal = lsGetItem(lsKeys.fontFamily.id);
+        let availableFonts = [
+            { family: lsKeys.fontFamily.defaultValue, fullName: lsKeys.fontFamily.defaultValue },
+            { family: 'Consolas', fullName: 'Consolas' },
+            { family: 'SimHei', fullName: '黑体' },
+            { family: 'SimSun', fullName: '宋体' },
+            { family: 'KaiTi', fullName: '楷体' },
+            { family: 'Microsoft YaHei', fullName: '微软雅黑' },
+        ];
+        if ('queryLocalFonts' in window) {
+            queryLocalFonts().then(fonts => {
+                availableFonts = [...availableFonts, ...fonts].reduce((acc, font) => {
+                    if (!acc.some(f => f.family === font.family)) acc.push(font);
+                    return acc;
+                }, []);
+                const selectedIndex = availableFonts.findIndex(f => f.family === fontFamilyVal);
+                resetFontFamilyDiv(selectedIndex, availableFonts);
+            }).catch(err => {
+                console.error(err);
+            });
+        } else {
+            console.info('queryLocalFonts 高级查询 API 不可用,使用预定字体列表');
+        }
+        const selectedIndex = availableFonts.findIndex(f => f.family === fontFamilyVal);
+        resetFontFamilyDiv(selectedIndex, availableFonts);
+        buildFontFamilyCtrl();
+    }
+
+    function buildFontFamilyCtrl() {
+        const fontFamilyCtrl = getById(eleIds.fontFamilyCtrl);
+        fontFamilyCtrl.append(
+            embyButton({ label: '切换手填', iconKey: iconKeys.edit, }, (e) => {
+                const xChecked = !e.target.xChecked;
+                e.target.xChecked = xChecked;
+                e.target.title = xChecked ? '手填' : '选择';
+                getById(eleIds.fontFamilySelect).style.display = xChecked ? 'none' : '';
+                getById(eleIds.fontFamilyInput).style.display = xChecked ? '' : 'none';
+                if (xChecked) {
+                    getById(eleIds.fontFamilyLabel).innerHTML = '';
+                }
+            })
+        );
+        fontFamilyCtrl.append(
+            embyButton({ label: '重置为默认', iconKey: iconKeys.refresh, }
+                , () => {
+                    if (lsCheckSet(lsKeys.fontFamily.id, lsKeys.fontFamily.defaultValue)) {
+                        changeFontStylePreview();
+                        onSliderChangeLabel(lsKeys.fontFamily.defaultValue, { labelId: eleIds.fontFamilyLabel });
+                        getById(eleIds.fontFamilyInput).value = lsGetItem(lsKeys.fontFamily.id);
+                        loadDanmaku(LOAD_TYPE.RELOAD);
+                    }
+                })
+        );
+    }
+
+    function resetFontFamilyDiv(selectedIndexOrValue, opts) {
+        const fontFamilyDiv = getById(eleIds.fontFamilyDiv);
+        fontFamilyDiv.innerHTML = '';
+        fontFamilyDiv.append(
+            embySelect({ id: eleIds.fontFamilySelect, label: `${lsKeys.fontFamily.name}: `, }
+                , selectedIndexOrValue, opts, 'family', 'family'
+                , (value, index, option) => {
+                    console.log('fontFamilyDivChange: ', value, index, option);
+                    // loadLocalFont(option.family);
+                    if (lsCheckSet(lsKeys.fontFamily.id, value)) {
+                        changeFontStylePreview();
+                        const labelVal = option.family !== option.fullName ? option.fullName : '';
+                        onSliderChangeLabel(labelVal, { labelId: eleIds.fontFamilyLabel });
+                        loadDanmaku(LOAD_TYPE.RELOAD);
+                    }
+                })
+        );
+        fontFamilyDiv.append(
+            embyInput({ id: eleIds.fontFamilyInput, value: lsGetItem(lsKeys.fontFamily.id)
+                , type: 'search', style: 'display: none;' }
+                , (e) => {
+                    const inputVal = getTargetInput(e).value.trim();
+                    if (!inputVal) { return; }
+                    if (lsCheckSet(lsKeys.fontFamily.id, inputVal)) {
+                        changeFontStylePreview();
+                        loadDanmaku(LOAD_TYPE.RELOAD);
+                    }
+                })
+        );
+        changeFontStylePreview();
+        const fontFamilyOpt = opts.find(opt => opt.family === lsGetItem(lsKeys.fontFamily.id));
+        const labelVal = fontFamilyOpt ? fontFamilyOpt.fullName : '';
+        onSliderChangeLabel(labelVal, { labelId: eleIds.fontFamilyLabel });
+    }
+
+    // function fontCheck(family, callback) {
+    //     document.fonts.ready.then(() => {
+    //         if (document.fonts.check(`25px "${family}"`)) {
+    //             console.log(`The font family "${family}" is now available`);
+    //             callback(true);
+    //         } else {
+    //             console.log(`The font family "${family}" is not available`);
+    //             callback(false);
+    //         }
+    //     });
+    // }
+
+    function loadLocalFont(family) {
+        const font = new FontFace(family, `local("${family}")`);
+        font.load().then(loadedFont => {
+            document.fonts.add(loadedFont);
+            console.log(`The local font "${family}" has been added under the name "${family}"`);
+        }).catch(err => {
+            console.error(`Failed to load or add the local font "${family}"`, err);
+        });
+    }
+
+    function changeFontStylePreview() {
+        const fontStylePreview = getById(eleIds.fontStylePreview);
+        const fontWeight = lsGetItem(lsKeys.fontWeight.id);
+        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        const fontFamily = lsGetItem(lsKeys.fontFamily.id);
+        const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
+        const baseColor = Number(styles.colors.info).toString(16).padStart(6, '0');
+        const color = `${baseColor}${fontOpacity}`;
+        const shadowColor = baseColor === '000000' ? `#ffffff${fontOpacity}` : `#000000${fontOpacity}`;
+        const fontSizeReferent = fontStylePreview.previousElementSibling;
+        const fontSize  = parseFloat(getComputedStyle(fontSizeReferent).fontSize.replace('px', ''));
+        const cmtStyle = getCommentStyle(color, shadowColor, fontStyle, fontWeight, fontSize, fontFamily);
+        Object.assign(fontStylePreview.style, cmtStyle);
+    }
+
     function buildSearchEpisode(containerId) {
         const container = getById(containerId);
-        const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
+        const episodeId = window.ede.episode_info ? window.ede.episode_info.episodeId : null;
+        const comments = window.ede.danmuCache[episodeId] || [];
         let template = `
             <div>
                 <div>
@@ -1555,7 +1766,7 @@
                 <div is="emby-collapse" title="附加弹幕">
                     <div class="${classes.collapseContentNav}">
                         <label class="${classes.embyLabel}">弹弹 play 支持解析的第三方 url: </label>
-                        <div id="${eleIds.extConmentSearchDiv}" style="display: flex;"></div>
+                        <div id="${eleIds.extCommentSearchDiv}" style="display: flex;"></div>
                         <div class="${classes.embyFieldDesc}">
                             原接口文档说明支持(如A/B/C站),自测另外支持[ 爱奇艺视频, 腾讯视频, 优酷视频, ],不支持[ 芒果 TV, ]
                         </div>
@@ -1578,7 +1789,7 @@
         const currentMatchedDiv = getById(eleIds.currentMatchedDiv, container);
         currentMatchedDiv.append(
             embyButton({ label: '取消匹配/清空弹幕', iconKey: iconKeys.close }, (e) => {
-                if (window.ede.episode_info?.episodeId) {
+                if (window.ede.episode_info && window.ede.episode_info.episodeId) {
                     window.ede.episode_info.episodeId = null;
                 }
                 if (window.ede.danmaku) {
@@ -1587,22 +1798,24 @@
                 currentMatchedDiv.querySelector('label').textContent = '弹弹 play 总量: 0';
             })
         );
-        // buildExtConment
-        const extConmentSearchDiv = getById(eleIds.extConmentSearchDiv, container);
+        // buildExtComment
+        const extCommentSearchDiv = getById(eleIds.extCommentSearchDiv, container);
         buildExtUrlsDiv();
-        extConmentSearchDiv.append(embyInput({ type: 'search', placeholder: 'http(s)://' }, onEnterExtConment));
-        extConmentSearchDiv.append(embyButton({ label: '搜索', iconKey: iconKeys.search}, onEnterExtConment));
+        extCommentSearchDiv.append(embyInput({ type: 'search', placeholder: 'http(s)://' }, onEnterExtComment));
+        extCommentSearchDiv.append(embyButton({ label: '搜索', iconKey: iconKeys.search}, onEnterExtComment));
     }
 
     function buildExtUrlsDiv() {
-        const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
-        const allComments = comments.concat(...Object.values(window.ede.extConmentCache));
+        const episodeId = window.ede.episode_info ? window.ede.episode_info.episodeId : null;
+        const comments = window.ede.danmuCache[episodeId] || [];
+        const curExtCommentCache = window.ede.extCommentCache[episodeId];
+        const allComments = comments.concat(...Object.values(curExtCommentCache || {}));
         const extUrlsDiv = getById(eleIds.extUrlsDiv);
         extUrlsDiv.innerHTML = '';
-        Object.entries(window.ede.extConmentCache).forEach(([key, val]) => {
+        curExtCommentCache && Object.entries(curExtCommentCache).forEach(([key, val]) => {
             const extUrlDiv = document.createElement('div');
             extUrlDiv.append(embyButton({ label: '清空此加载', iconKey: iconKeys.close }, (e) => {
-                delete window.ede.extConmentCache[key];
+                delete curExtCommentCache[key];
                 e.target.parentNode.remove();
                 createDanmaku(allComments.filter(c => c.fromUrl !== key));
             }));
@@ -1611,15 +1824,16 @@
         });
     }
 
-    async function onEnterExtConment(e) {
+    async function onEnterExtComment(e) {
         const extUrl = getTargetInput(e).value.trim();
         if (!extUrl.startsWith('http')) { return embyToast({ text: '输入的 url 应以 http 开头!' }); }
-        let extcomments = window.ede.extConmentCache[extUrl];
-        if (!extcomments) {
-            extcomments = await fetchExtcommentActual(extUrl);
+        const episodeId = window.ede.episode_info.episodeId;
+        const comments = window.ede.danmuCache[episodeId] || [];
+        const extcomments = await fetchExtcommentActual(extUrl, comments);
+        if (extcomments.length === 0) {
+            return embyToast({ text: '附加弹幕不能为空!' });
         }
-        const comments = window.ede.danmuCache[window.ede.episode_info?.episodeId] ?? [];
-        const allComments = comments.concat(...Object.values(window.ede.extConmentCache));
+        const allComments = comments.concat(extcomments);
         createDanmaku(allComments)
         .then(() => {
             const beforeLength = window.ede.commentsParsed.length - extcomments.length;
@@ -1684,14 +1898,25 @@
                 embyImgButton(embyImg(dandanplayApi.posterImg(animeId)), 'width: calc((var(--videoosd-tabs-height) - 3em) * (2 / 3)); margin-right: 1em;')
             );
         }
-        const danmuListExts = Object.values(window.ede.extConmentCache).map((value, index) => {
-            return { id: `ext${index + 1}`, name: `附加${index + 1}`, onChange: () => danmakuParser(value) };
-        });
-        getById(eleIds.danmuListDiv, container).append(
-            embyTabs(danmuListOpts.concat(danmuListExts), lsKeys.danmuList.defaultValue, 'id', 'name', doDanmuListOptsChange)
-        );
+        buildDanmuListDiv(container);
         // 额外信息
         buildExtInfo(container);
+    }
+
+    function buildDanmuListDiv(container) {
+        const { episodeId, } = window.ede.episode_info;
+        const danmuListExts = Object.values(window.ede.extCommentCache[episodeId] || {}).map((value, index) => {
+            return { id: `ext${index + 1}`, name: `附加${index + 1}`, onChange: () => danmakuParser(value) };
+        });
+        let danmuListTabOpts = danmuListOpts;
+        if (danmuListExts.length > 0) {
+            const dandanplayListOpt = { id: 'dandanplay', name: '弹弹 play'
+                , onChange: () => danmakuParser(window.ede.danmuCache[episodeId] || {}) };
+            danmuListTabOpts = danmuListTabOpts.concat(dandanplayListOpt).concat(danmuListExts);
+        }        
+        getById(eleIds.danmuListDiv, container).append(
+            embyTabs(danmuListTabOpts, lsKeys.danmuList.defaultValue, 'id', 'name', doDanmuListOptsChange)
+        );
     }
 
     function buildExtInfo(container) {
@@ -1715,13 +1940,16 @@
                 extInfoDiv.hidden = !xChecked;
                 const charactersDiv = getById(eleIds.charactersDiv);
                 if (charactersDiv.firstChild) { return; }
-                if (window.ede.bangumiInfo?.characters && window.ede.bangumiInfo.animeId === window.ede.episode_info.animeId) {
-                    return renderBangumiCharacters(charactersDiv, window.ede.bangumiInfo.characters);
+                const bangumiInfo = window.ede.bangumiInfo;
+                if (bangumiInfo && bangumiInfo.characters
+                    && bangumiInfo.animeId === window.ede.episode_info.animeId
+                ) {
+                    return renderBangumiCharacters(charactersDiv, bangumiInfo.characters);
                 }
                 getEpisodeBangumiRel().then(bangumiInfo => {
                     return fetchJson(bangumiApi.getCharacters(bangumiInfo.subjectId));
                 }).then(characters => {
-                    window.ede.bangumiInfo.characters = characters;
+                    bangumiInfo.characters = characters;
                     renderBangumiCharacters(charactersDiv, characters);
                 });
                 function renderBangumiCharacters(container, characters) {
@@ -2003,7 +2231,7 @@
                 <div id="${eleIds.consoleLogCtrl}"></div>
                 <div id="${eleIds.consoleLogInfo}">
                     <textarea id="${eleIds.consoleLogText}" readOnly style="resize: vertical;margin-top: 0.6em;"
-                        rows="14" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
+                        rows="12" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                     <textarea id="${eleIds.consoleLogTextInput}" hidden style="resize: vertical;"
                         rows="1" is="emby-textarea" class="txtOverview emby-textarea"></textarea>
                 </div>
@@ -2017,7 +2245,7 @@
                         <div id="${eleIds.debugButton}"></div>
                     </div>
                 </div>
-                <div is="emby-collapse" title="开放源代码许可" data-expanded="true">
+                <div is="emby-collapse" title="开放源代码许可" data-expanded="true" style="margin-top: 0.6em;">
                     <div id="${eleIds.openSourceLicenseDiv}" class="${classes.collapseContentNav}" style="display: flex; flex-direction: column;"></div>
                 </div>
             </div>
@@ -2157,6 +2385,11 @@
 
     function buildDebugButton(container) {
         const debugWrapper = getById(eleIds.debugButton, container);
+        debugWrapper.append(embyButton({ label: '打印环境信息' }, () => {
+            require(['browser'], (browser) => {
+                console.log('Emby 内部自身判断: ', browser);
+            });
+        }));
         debugWrapper.append(embyButton({ label: '打印弹幕引擎信息' }, () => {
             const msg = `弹幕引擎是否存在: ${!!window.Danmaku}, 弹幕引擎是否实例化成功: ${!!window.ede.danmaku}`;
             console.log(msg);
@@ -2228,7 +2461,7 @@
             }
         ));
         getById(eleIds.tabIframeSrcInputDiv, container).append(embyInput(
-            { type: 'search', value: window.ede.bangumiInfo?.bangumiUrl ?? '' }
+            { type: 'search', value: window.ede.bangumiInfo ? window.ede.bangumiInfo.bangumiUrl : '' }
             , (e) => { getById(eleIds.tabIframe).src = e.target.value.trim(); }
         ));
     }
@@ -2237,7 +2470,8 @@
         if (!lsGetItem(lsKeys.osdTitleEnable.id)) {
             return;
         }
-        const { episodeId, animeTitle, episodeTitle } = window.ede?.episode_info || {};
+        const episode_info = window.ede.episode_info || {};
+        const { episodeId, animeTitle, episodeTitle } = episode_info;
         const videoOsdContainer = document.querySelector(`${mediaContainerQueryStr} .videoOsdSecondaryText`);
         let videoOsdDanmakuTitle = getById(eleIds.videoOsdDanmakuTitle, videoOsdContainer);
         if (!videoOsdDanmakuTitle) {
@@ -2289,7 +2523,9 @@
     function doDanmakuSwitch() {
         console.log('切换' + lsKeys.switch.name);
         const flag = !lsGetItem(lsKeys.switch.id);
-        flag ? window.ede.danmaku?.show() : window.ede.danmaku?.hide();
+        if (window.ede.danmaku) {
+            flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
+        }
         const osdDanmakuSwitchBtn = getById(eleIds.danmakuSwitchBtn);
         if (osdDanmakuSwitchBtn) {
             osdDanmakuSwitchBtn.firstChild.innerHTML = flag ? iconKeys.comment : iconKeys.comments_disabled;
@@ -2473,14 +2709,17 @@
 
     function onSliderChange(val, props, needReload = true, labelVal) {
         onSliderChangeLabel(labelVal ? labelVal : val, props);
-        if (props?.key && lsCheckSet(props.key, val)) {
-            console.log(`${props.key} changed to ${val}`);
-            if (needReload) { loadDanmaku(LOAD_TYPE.RELOAD); }
+        if (props.key && lsCheckSet(props.key, val)) {
+            console.log(`${props.key} changed to ${val}, needReload: ${needReload}`);
+            if (needReload) {
+                changeFontStylePreview();
+                loadDanmaku(LOAD_TYPE.RELOAD); 
+            }
         }
     }
 
     function onSliderChangeLabel(val, props) {
-        if (props?.labelId) { getById(props.labelId).innerText = val; }
+        if (props.labelId) { getById(props.labelId).innerText = val; }
     }
     
     function doDanmakuFilterKeywordsBtnClick(event) {
@@ -2589,7 +2828,9 @@
      * 'iconKey' will innerHTML <i>iconKey</i>|function will not setAttribute
      */
     function embyButton(props, onClick) {
-        const button = document.createElement('button', { is: 'emby-button' });
+        const button = document.createElement('button');
+        // !!! important: this is must setAttribute('is', 'emby-xxx'), unknown reason
+        button.setAttribute('is', 'emby-button');
         button.setAttribute('type', 'button');
         Object.entries(props).forEach(([key, value]) => {
             if (key !== 'iconKey' &&  typeof value !== 'function') { button.setAttribute(key, value); }
@@ -2607,7 +2848,37 @@
         return button;
     }
 
+    function embyALink(href, text) {
+        const aEle = document.createElement('a');
+        // !!! important: this is must setAttribute('is', 'emby-xxx'), unknown reason
+        aEle.setAttribute('is', 'emby-linkbutton');
+        aEle.href = href;
+        aEle.textContent = text || href;
+        aEle.target = '_blank';
+        aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
+        if (OS.isMobile()) {
+            aEle.addEventListener('click', (event) => {
+                event.preventDefault();
+                navigator.clipboard.writeText(href).then(() => {
+                    console.log('Link copied to clipboard:', href);
+                    const label = document.createElement('label');
+                    label.textContent = '已复制';
+                    label.style.color = 'green';
+                    label.style.paddingLeft = '0.5em';
+                    aEle.append(label);
+                    setTimeout(() => {
+                        aEle.removeChild(label);
+                    }, 3000);
+                }, (err) => {
+                    console.error('Failed to copy link:', err);
+                });
+            });
+        }
+        return aEle;
+    }
+
     function embyTabs(options, selectedValue, optionValueKey, optionTitleKey, onChange) {
+        // !!! important: this is must { is: 'emby-xxx' }, unknown reason
         const tabs = document.createElement('div', { is: 'emby-tabs' });
         tabs.setAttribute('data-index', '0');
         tabs.className = classes.embyTabsDiv1;
@@ -2639,7 +2910,13 @@
         if (!Number.isInteger(selectedIndexOrValue)) {
             selectedIndexOrValue = options.indexOf(selectedIndexOrValue);
         }
+        // !!! important: this is must { is: 'emby-select' }
         const selectElement = document.createElement('select', { is: 'emby-select'});
+        require(['browser'], (browser) => {
+            if (browser.tv) {
+                selectElement.classList.add(classes.embySelectTv);
+            }
+        });
         Object.entries(props).forEach(([key, value]) => {
             if (typeof value !== 'function') { selectElement.setAttribute(key, value); }
         });
@@ -2659,9 +2936,14 @@
                 onChange(e.target.value, e.target.selectedIndex, options[e.target.selectedIndex]);
             });
         }
-        return selectElement;
+        // return selectElement;
+        // !!! important, only emby-select must have selectLabel class wrapper
+        const selectLabel = document.createElement('label');
+        selectLabel.classList.add('selectLabel');
+        selectLabel.appendChild(selectElement);
+        return selectLabel;
     }
-    
+
     function embyCheckboxList(id, checkBoxName, selectedStrArray, options, onChange, isVertical = false) {
         const checkboxContainer = document.createElement('div');
         checkboxContainer.setAttribute('class', classes.embyCheckboxList);
@@ -2669,7 +2951,7 @@
         checkboxContainer.setAttribute('id', id);
         options.forEach(option => {
             checkboxContainer.append(embyCheckbox({ name: checkBoxName, label: option.name, value: option.id }
-                , selectedStrArray?.indexOf(option.id) > -1 , onChange));
+                , (selectedStrArray ? selectedStrArray.indexOf(option.id) > -1 : false) , onChange));
         });
         return checkboxContainer;
     }
@@ -2678,8 +2960,8 @@
         const checkboxLabel = document.createElement('label');
         checkboxLabel.classList.add('emby-checkbox-label');
         checkboxLabel.setAttribute('style', 'width: auto;');
+        // !!! important: this is must { is: 'emby-xxx' }, unknown reason
         const checkbox = document.createElement('input', { is: 'emby-checkbox' });
-        checkbox.setAttribute('is', 'emby-checkbox');
         checkbox.setAttribute('type', 'checkbox');
         checkbox.setAttribute('id', id);
         checkbox.setAttribute('name', name);
@@ -2731,6 +3013,7 @@
             'data-bubble': false, 'data-hoverthumb': true , style: '',
         };
         options = { ...defaultOpts, ...options };
+        // !!! important: this is must { is: 'emby-xxx' }, unknown reason
         const slider = document.createElement('input', { is: 'emby-slider' });
         slider.setAttribute('type', 'range');
         if (props.id) { slider.setAttribute('id', props.id); }
@@ -2746,12 +3029,16 @@
             slider.setValue(options.value);
             slider.dispatchEvent(new Event('input'));
         }
-        // 以下兼容旧版本emby,控制器操作锁定滑块焦点
-        slider.addEventListener('keydown', e => {
-            const orient = slider.getAttribute('orient') || 'horizontal';
-            if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
-                (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
-                e.stopPropagation();
+        require(['browser'], (browser) => {
+            if (browser.electron && browser.windows) { // Emby Theater
+                // 以下兼容旧版本emby,控制器操作锁定滑块焦点
+                slider.addEventListener('keydown', e => {
+                    const orient = slider.getAttribute('orient') || 'horizontal';
+                    if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
+                        (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
+                        e.stopPropagation();
+                    }
+                });
             }
         });
         return slider;
@@ -2765,39 +3052,12 @@
     async function embyDialog(opts = {}) {
         const defaultOpts = { text: '', title: '', timeout: 0, html: '', buttons: [] };
         opts = { ...defaultOpts, ...opts };
-        return require(['dialog']).then(items => items[0]?.(opts))
+        return require(['dialog']).then(items => items[0](opts))
             .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
     function closeEmbyDialog() {
         getByClass(classes.formDialogFooterItem).dispatchEvent(new Event('click'));
-    }
-
-    function embyALink(href, text) {
-        const aEle = document.createElement('a');
-        aEle.href = href;
-        aEle.textContent = text ?? href;
-        aEle.target = '_blank';
-        aEle.className = 'button-link button-link-color-inherit button-link-fontweight-inherit emby-button';
-        if (OS.isMobile()) {
-            aEle.addEventListener('click', (event) => {
-                event.preventDefault();
-                navigator.clipboard.writeText(href).then(() => {
-                    console.log('Link copied to clipboard:', href);
-                    const label = document.createElement('label');
-                    label.textContent = '已复制';
-                    label.style.color = 'green';
-                    label.style.paddingLeft = '0.5em';
-                    aEle.append(label);
-                    setTimeout(() => {
-                        aEle.removeChild(label);
-                    }, 3000);
-                }, (err) => {
-                    console.error('Failed to copy link:', err);
-                });
-            });
-        }
-        return aEle;
     }
 
     function embyImg(src, style, id, draggable = false) {
@@ -2830,7 +3090,7 @@
     async function embyAlert(opts = {}) {
         const defaultOpts = { text: '', title: '', timeout: 0, html: ''};
         opts = { ...defaultOpts, ...opts };
-        return require(['alert']).then(items => items[0]?.(opts))
+        return require(['alert']).then(items => items[0](opts))
             .catch(error => { console.log('点击弹出框外部取消: ' + error) });
     }
 
@@ -3029,7 +3289,8 @@
                     const mediaTime = _media.currentTime;
                     _media.currentTime = realCurrentTime;
                     // playbackRate 同步依赖至少 100ms currentTime 变更
-                    _media.playbackRate = playbackManager.getPlayerState().PlayState.PlaybackRate ?? 1;
+                    const embyPlaybackRate = playbackManager.getPlayerState().PlayState.PlaybackRate;
+                    _media.playbackRate = embyPlaybackRate ? embyPlaybackRate : 1;
                     // 当前时间与上次记录时间差值大于2秒,则判定为用户操作进度,seeking 事件必须在 currentTime 更改后触发,否则回退后弹幕将消失
                     if (Math.abs(mediaTime - realCurrentTime) > 2) {
                         _media.dispatchEvent(new Event('seeking'));
@@ -3067,10 +3328,15 @@
 
     function beforeDestroy() {
         // 此段销毁不重要,可有可无,仅是规范使用,清除弹幕,但未销毁 danmaku 实例
-        window.ede.danmaku?.clear();
+        if (window.ede.danmaku) {
+            window.ede.danmaku.clear();
+        }
         // 销毁弹幕按钮容器简单,双 mediaContainerQueryStr 下免去 DOM 位移操作
-        getById(eleIds.danmakuCtr)?.remove();
-        // getById(eleIds.h5VideoAdapter)?.remove();
+        const danmakuCtr = getById(eleIds.danmakuCtr);
+        if (danmakuCtr) {
+            danmakuCtr.remove();
+        }
+        // getById(eleIds.h5VideoAdapter).remove();
         // 销毁平滑补充 timeupdate 定时器
         videoTimeUpdateInterval(null, false);
         // 销毁可能残留的定时器
