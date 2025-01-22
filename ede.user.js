@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.41
+// @version      1.42
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -23,7 +23,7 @@
     // note01: 部分 AndroidTV 仅支持最高 ES9 (支持 webview 内核版本 60 以上)
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.41', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.42', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.51', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.6', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -112,6 +112,7 @@
         rtl: { id: 'rtl', name: '从右至左', },
         rolling: { id: 'rolling', name: '滚动弹幕', },
         onlyWhite: { id: 'onlyWhite', name: '彩色弹幕', },
+        emoji: { id: 'emoji', name: 'emoji', },
     };
     const danmakuSource = {
         AcFun: { id: 'AcFun', name: 'A站(AcFun)' },
@@ -196,9 +197,9 @@
         fontSizeRate: { id: 'danmakuFontSizeRate', defaultValue: 1, name: '弹幕大小' },
         fontOpacity: { id: 'danmakuFontOpacity', defaultValue: 1, name: '透明度' },
         speed: { id: 'danmakuBaseSpeed', defaultValue: 1, name: '速度' },
+        timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
         fontWeight: { id: 'danmakuFontWeight', defaultValue: 400, name: '弹幕粗细' },
         fontStyle: { id: 'danmakuFontStyle', defaultValue: 0, name: '弹幕斜体' },
-        timelineOffset: { id: 'danmakuTimelineOffset', defaultValue: 0, name: '轴偏秒' },
         fontFamily: { id: 'danmakuFontFamily', defaultValue: 'sans-serif', name: '字体' },
         danmuList: { id: 'danmakuDanmuList', defaultValue: 0, name: '弹幕列表' },
         typeFilter: { id: 'danmakuTypeFilter', defaultValue: [], name: '屏蔽类型' },
@@ -215,6 +216,7 @@
         consoleLogEnable: { id: 'danmakuConsoleLogEnable', defaultValue: false, name: '控制台日志' },
         osdTitleEnable: { id: 'danmakuOsdTitleEnable', defaultValue: false, name: '播放界面右下角显示弹幕信息' },
         osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
+        // removeEmojiEnable: { id: 'danmakuRemoveEmojiEnable', defaultValue: false, name: '移除弹幕中的emoji' },
         debugShowDanmakuWrapper: { id: 'danmakuDebugShowDanmakuWrapper', defaultValue: false, name: '弹幕容器边界' },
         debugShowDanmakuCtrWrapper: { id: 'danmakuDebugShowDanmakuCtrWrapper', defaultValue: false, name: '按钮容器边界' },
         debugReverseDanmu: { id: 'danmakuDebugReverseDanmu', defaultValue: false, name: '反转弹幕方向' },
@@ -222,6 +224,8 @@
         debugForceDanmuWhite: { id: 'danmakuDebugForceDanmuWhite', defaultValue: false, name: '强制弹幕白色' },
         debugGenerateLarge: { id: 'danmakuDebugGenerateLarge', defaultValue: false, name: '测试大量弹幕' },
         debugDialogHyalinize: { id: 'danmakuDebugDialogHyalinize', defaultValue: false, name: '透明弹窗背景' },
+        debugDialogWindow: { id: 'danmakuDebugDialogWindow', defaultValue: false, name: '弹窗窗口化' },
+        debugDialogRight: { id: 'danmakuDebugDialogRight', defaultValue: false, name: '弹窗靠右布局' }, // Emby Android 上暂时存在 bug
         debugTabIframeEnable: { id: 'danmakuDebugTabIframeEnable', defaultValue: false, name: '打开内嵌网页' },
         quickDebugOn: { id: 'danmakuQuickDebugOn', defaultValue: false, name: '快速调试' },
         customeCorsProxyUrl: { id: 'danmakuCustomeCorsProxyUrl', defaultValue: corsProxy, name: '跨域代理前缀' },
@@ -372,6 +376,8 @@
         formDialogHeader: 'formDialogHeader',
         formDialogFooter: 'formDialogFooter',
         formDialogFooterItem: 'formDialogFooterItem',
+        dialogFullscreen: 'dialog-fullscreen',
+        dialogFullscreenLowres: 'dialog-fullscreen-lowres', // Emby Android (魔改版)特殊全屏
         videoOsdTitle: 'videoOsdTitle', // 播放页媒体次级标题
         videoOsdBottomButtons: 'videoOsdBottom-buttons', // 新老客户端播放页通用的底部按钮,但在 TV 下是 hide
         videoOsdBottomButtonsTopRight: 'videoOsdBottom-buttons-topright', // 新客户端播放页右上方的按钮
@@ -386,7 +392,7 @@
         embyInput: 'emby-input emby-input-smaller',
         embySelectWrapper: 'emby-select-wrapper',
         embySelectTv: 'emby-select-tv', // highlight on tv layout
-        embyCheckboxList: 'featureList', // 'checkboxList'
+        embyCheckboxList: 'checkboxList',
         embyFieldDesc: 'fieldDescription',
         embyTabsMenu: 'headerMiddle headerSection sectionTabs headerMiddle-withSectionTabs',
         embyTabsDiv1: 'tabs-viewmenubar tabs-viewmenubar-backgroundcontainer focusable scrollX hiddenScrollX smoothScrollX scrollFrameX emby-tabs',
@@ -405,7 +411,9 @@
         // 容器内元素垂直排列,水平居中 
         embySliderList: 'display: flex;flex-direction: column;justify-content: center;align-items: center;',
         // 容器内元素横向并排,垂直居中
-        embySlider: 'display: flex; align-items: center; gap: 1em; margin-bottom: 0.3em;',
+        embySlider: 'display: flex; align-items: center; margin-bottom: 0.3em;',
+        embySliderLabel: 'width: 4em; margin-left: 1em;',
+        rightLayout: 'position: fixed; right: 0; width: 40%; min-width: auto; min-height: auto; max-width: 100%; max-height: 100%;',
         colors: {
             info: 0xffffff,  // 白色
             success: 0x00ff00,  // 绿色
@@ -420,6 +428,12 @@
             { id: 'oblique', name: '形变斜体' },
         ],
     };
+    function objectEntries(obj) {
+        if (obj && typeof obj === 'object') {
+            return Object.keys(obj).map(key => [key, obj[key]]);
+        }
+        return [];
+    }
     const OS = {
         isAndroid: () => /android/i.test(navigator.userAgent),
         isIOS: () => /iPad|iPhone|iPod/i.test(navigator.userAgent),
@@ -430,8 +444,9 @@
         isUbuntu: () => /Ubuntu/i.test(navigator.userAgent),
         isAndroidEmbyNoisyX: () => OS.isAndroid() && ApiClient.appVersion().includes('-'),
         isEmbyNoisyX: () => ApiClient.appVersion().includes('-'),
-        isOthers: () => Object.entries(OS).filter(([key, val]) => key !== 'isOthers').every(([key, val]) => !val()),
+        isOthers: () => objectEntries(OS).filter(([key, val]) => key !== 'isOthers').every(([key, val]) => !val()),
     };
+    const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}]/gu;
 
     // ------ 程序内部使用,请勿更改 end ------
 
@@ -474,6 +489,7 @@
             this.searchDanmakuOpts = {}; // 手动搜索变量
             this.appLogAspect = null; // 应用日志切面
             this.bangumiInfo = {};
+            this.debugUsedItemId = '';
         }
     }
 
@@ -620,6 +636,7 @@
     }
 
     async function fatchEmbyItemInfo(id) {
+        if (!id) { return; }
         return await ApiClient.getItem(ApiClient.getCurrentUserId(), id);
     }
 
@@ -794,7 +811,11 @@
     }
 
     async function getMapByEmbyItemInfo() {
-        const item = await getEmbyItemInfo();
+        let item = await getEmbyItemInfo();
+        if (!item) {
+            // this only working on quickDebug
+            item = await fatchEmbyItemInfo(window.ede.debugUsedItemId);
+        }
         if (!item) { return null; } // getEmbyItemInfo from playbackManager null, will next called
         let _id;
         let animeName;
@@ -962,7 +983,15 @@
         
         const _container = document.querySelector(mediaContainerQueryStr);
         const _media = document.querySelector(mediaQueryStr);
-        if (!_media) { throw new Error('用户已退出视频播放'); }
+        if (!_media) {
+            // this only working on quickDebug
+            if (!window.ede.danmaku) {
+                window.ede.danmaku = { comments: _comments, };
+            }
+            // 设置弹窗内的弹幕信息
+            buildCurrentDanmakuInfo(currentDanmakuInfoContainerId);
+            throw new Error('用户已退出视频播放');
+        }
         if (!isVersionOld) { _media.style.position = 'absolute'; }
         // from https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L1104
         const wrapperTop = 0; // 播放器 UI 顶部阴影
@@ -1124,7 +1153,7 @@
                                 let allComments = comments;
                                 if (extCommentsLength > 0) {
                                     Promise.all(
-                                        Object.entries(extCommentCache).map(([key, val]) => fetchExtcommentActual(key, allComments))
+                                        objectEntries(extCommentCache).map(([key, val]) => fetchExtcommentActual(key, allComments))
                                     ).then((results) => {
                                         allComments = allComments.concat(...results);
                                         console.log(`使用 fetch 重取,附加前总量: ${comments.length}, 附加后总量: ${allComments.length}`);
@@ -1192,6 +1221,11 @@
             comments = comments.filter(c => danmakuTypeFilterOpts.ltr.id !== c.mode
                 && danmakuTypeFilterOpts.rtl.id !== c.mode);
             idArray.splice(idArray.indexOf(danmakuTypeFilterOpts.rolling.id), 1);
+        }
+        // 按 emoji 过滤
+        if (idArray.includes(danmakuTypeFilterOpts.emoji.id)) {
+            comments = comments.filter(c => !emojiRegex.test(c.text));
+            idArray.splice(idArray.indexOf(danmakuTypeFilterOpts.emoji.id), 1);
         }
         // 过滤特定模式的弹幕
         if (idArray.length > 0) {
@@ -1281,6 +1315,7 @@
         const timelineOffset = lsGetItem(lsKeys.timelineOffset.id);
         const sourceUidReg = /\[(.*)\](.*)/;
         const showSourceIds = lsGetItem(lsKeys.showSource.id);
+        // const removeEmojiEnable = lsGetItem(lsKeys.removeEmojiEnable.id);
         //const $xml = new DOMParser().parseFromString(string, 'text/xml')
         return $obj
             .map(($comment) => {
@@ -1311,6 +1346,9 @@
                     cmt.text += showSourceIds.map(id => id === showSource.source.id ? `,[${cmt[id]}]` : ',' + cmt[id]).join('');
                 }
                 cmt.cuid = cmt[showSource.cid.id] + ',' + cmt[showSource.originalUserId.id];
+                // if (removeEmojiEnable) {
+                //     cmt.text = cmt.text.replace(emojiRegex, '');
+                // }
                 return cmt;
             })
             .filter((x) => x)
@@ -1424,13 +1462,13 @@
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.filterLevel.name}: </label>
                         <div id="${eleIds.filterLevelDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.filterLevelLabel}" style="width: 4em;">0</label>
+                        <label id="${eleIds.filterLevelLabel}" style="${styles.embySliderLabel}">0</label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.heightPercent.name}: </label>
                         <div id="${eleIds.heightPercentDiv}" style="width: 15.5em; text-align: center;"></div>
                         <label>
-                            <label id="${eleIds.heightPercentLabel}" style="width: 4em;"></label>
+                            <label id="${eleIds.heightPercentLabel}" style="${styles.embySliderLabel}"></label>
                             <label>%</label>
                         </label>
                     </div>
@@ -1438,40 +1476,40 @@
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontSizeRate.name}: </label>
                         <div id="${eleIds.danmakuSizeDiv}" style="width: 15.5em; text-align: center;"></div>
                         <label>
-                            <label id="${eleIds.danmakuSizeLabel}" style="width: 4em;"></label>
+                            <label id="${eleIds.danmakuSizeLabel}" style="${styles.embySliderLabel}"></label>
                             <label>倍</label>
                         </label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontOpacity.name}: </label>
                         <div id="${eleIds.danmakuOpacityDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuOpacityLabel}" style="width: 4em;"></label>
+                        <label id="${eleIds.danmakuOpacityLabel}" style="${styles.embySliderLabel}"></label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.speed.name}: </label>
                         <div id="${eleIds.danmakuSpeedDiv}" style="width: 15.5em; text-align: center;"></div>
                         <label>
-                            <label id="${eleIds.danmakuSpeedLabel}" style="width: 4em;"></label>
+                            <label id="${eleIds.danmakuSpeedLabel}" style="${styles.embySliderLabel}"></label>
                             <label>倍</label>
                         </label>
                     </div>
                     <div style="${styles.embySlider}">
-                        <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontWeight.name}: </label>
-                        <div id="${eleIds.danmakuFontWeightDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuFontWeightLabel}" style="width: 4em;"></label>
-                    </div>
-                    <div style="${styles.embySlider}">
-                        <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontStyle.name}: </label>
-                        <div id="${eleIds.danmakuFontStyleDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.danmakuFontStyleLabel}" style="width: 4em;">正常</label>
-                    </div>
-                    <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.timelineOffset.name}: </label>
                         <div id="${eleIds.timelineOffsetDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label id="${eleIds.timelineOffsetLabel}" style="width: 4em;"></label>
+                        <label id="${eleIds.timelineOffsetLabel}" style="${styles.embySliderLabel}"></label>
                     </div>
                     <div is="emby-collapse" title="弹幕字体样式" data-expanded="false">
                         <div class="${classes.collapseContentNav}">
+                            <div style="${styles.embySlider}">
+                                <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontWeight.name}: </label>
+                                <div id="${eleIds.danmakuFontWeightDiv}" style="width: 15.5em; text-align: center;"></div>
+                                <label id="${eleIds.danmakuFontWeightLabel}" style="${styles.embySliderLabel}"></label>
+                            </div>
+                            <div style="${styles.embySlider}">
+                                <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontStyle.name}: </label>
+                                <div id="${eleIds.danmakuFontStyleDiv}" style="width: 15.5em; text-align: center;"></div>
+                                <label id="${eleIds.danmakuFontStyleLabel}" style="${styles.embySliderLabel}">正常</label>
+                            </div>
                             <div id="${eleIds.fontFamilyCtrl}" style="margin: 0.6em 0;"></div>
                             <div style="${styles.embySlider}">
                                 <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontFamily.name}: </label>
@@ -1486,7 +1524,7 @@
                                     简中/繁體/English/こんにちはウォルド/</br>
                                     ABC/abc/012/~!@<?>[]/《？》【】</br>
                                     ☆*: .｡. o(≧▽≦)o .｡.:*☆</br>
-                                    😆👏🎈🍋🌞⁉️🎉</br>
+                                    emoji:😆👏🎈🍋🌞⁉️🎉</br>
                                 </div>
                                 <div class="${classes.embyFieldDesc}">
                                     这些设置会影响此设备上的弹幕外观,此处固定为 dom 引擎,
@@ -1535,17 +1573,6 @@
             { labelId: eleIds.danmakuSpeedLabel, key: lsKeys.speed.id }
             , { value: lsGetItem(lsKeys.speed.id) }, onSliderChange, onSliderChangeLabel
         ));
-        getById(eleIds.danmakuFontWeightDiv, container).append(embySlider(
-            { labelId: eleIds.danmakuFontWeightLabel, key: lsKeys.fontWeight.id }
-            , { value: lsGetItem(lsKeys.fontWeight.id), min: 100, max: 1000, step: 100 }
-            , onSliderChange, onSliderChangeLabel
-        ));
-        getById(eleIds.danmakuFontStyleDiv, container).append(embySlider(
-            { labelId: eleIds.danmakuFontStyleLabel, key: lsKeys.fontStyle.id }
-            , { value: lsGetItem(lsKeys.fontStyle.id), min: 0, max: 2, step: 1 }
-            , (val, props) => onSliderChange(val, props, true, styles.fontStyles[val].name)
-            , (val, props) => onSliderChangeLabel(styles.fontStyles[val].name, props)
-        ));
         // 弹幕时间轴偏移秒数
         const btnContainer = getById(eleIds.timelineOffsetDiv, container);
         const timelineOffsetOpts = { labelId: eleIds.timelineOffsetLabel, key: lsKeys.timelineOffset.id };
@@ -1561,7 +1588,7 @@
                 }
             }));
         });
-        buildFontFamilySetting(container);
+        buildFontStyleSetting(container);
         // 配置 JSON 导入,导出
         buildSettingsBackup(container);
     }
@@ -1589,12 +1616,27 @@
         settingsCtrlEle.append(
             embyButton({ id: eleIds.settingsImportBtn, label: '应用', iconKey: iconKeys.done, style: 'display: none;' }, () => {
                 // const settings = JSON.parse(getById(eleIds.settingsText).value);
-                // lsBatchSet(Object.fromEntries(Object.entries(settings).map(([key, valueObj]) => [key, valueObj.value])));
+                // lsBatchSet(Object.fromEntries(objectEntries(settings).map(([key, valueObj]) => [key, valueObj.value])));
                 lsBatchSet(JSON.parse(getById(eleIds.settingsText).value));
                 loadDanmaku(LOAD_TYPE.INIT);
                 closeEmbyDialog();
             })
         );
+    }
+
+    function buildFontStyleSetting() {
+        getById(eleIds.danmakuFontWeightDiv).append(embySlider(
+            { labelId: eleIds.danmakuFontWeightLabel, key: lsKeys.fontWeight.id }
+            , { value: lsGetItem(lsKeys.fontWeight.id), min: 100, max: 1000, step: 100 }
+            , onSliderChange, onSliderChangeLabel
+        ));
+        getById(eleIds.danmakuFontStyleDiv).append(embySlider(
+            { labelId: eleIds.danmakuFontStyleLabel, key: lsKeys.fontStyle.id }
+            , { value: lsGetItem(lsKeys.fontStyle.id), min: 0, max: 2, step: 1 }
+            , (val, props) => onSliderChange(val, props, true, styles.fontStyles[val].name)
+            , (val, props) => onSliderChangeLabel(styles.fontStyles[val].name, props)
+        ));
+        buildFontFamilySetting();
     }
 
     function buildFontFamilySetting() {
@@ -1812,7 +1854,7 @@
         const allComments = comments.concat(...Object.values(curExtCommentCache || {}));
         const extUrlsDiv = getById(eleIds.extUrlsDiv);
         extUrlsDiv.innerHTML = '';
-        curExtCommentCache && Object.entries(curExtCommentCache).forEach(([key, val]) => {
+        curExtCommentCache && objectEntries(curExtCommentCache).forEach(([key, val]) => {
             const extUrlDiv = document.createElement('div');
             extUrlDiv.append(embyButton({ label: '清空此加载', iconKey: iconKeys.close }, (e) => {
                 delete curExtCommentCache[key];
@@ -1886,10 +1928,10 @@
                 <div style="${styles.embySlider + 'margin: 0.8em 0;'}">
                     <label class="${classes.embyLabel}" style="width:7em;">角色图片高度: </label>
                     <div id="${eleIds.characterImgHeihtDiv}" style="width: 36.5em; text-align: center;"></div>
-                    <label><label id="${eleIds.characterImgHeihtLabel}" style="width:4em;"></label>
+                    <label><label id="${eleIds.characterImgHeihtLabel}" style="${styles.embySliderLabel}"></label>
                     <label>em</label></label>
                 </div>
-                <div id="${eleIds.charactersDiv}" style="display: flex; flex-wrap: wrap; gap: .5em;"></div>
+                <div id="${eleIds.charactersDiv}" style="display: flex; flex-wrap: wrap;"></div>
             </div>
         `;
         container.innerHTML = template.trim();
@@ -1922,7 +1964,7 @@
     function buildExtInfo(container) {
         getById(eleIds.characterImgHeihtDiv, container).append(embySlider(
             { labelId: eleIds.characterImgHeihtLabel, }, { value: '12', min: 12, max: 100, step: 1 }
-            , null, (val, props) => {
+            , (val, props) => {
                 if (val === '12') { val = 'auto'; }
                 onSliderChangeLabel(val, props);
                 Array.from(getById(eleIds.charactersDiv).children)
@@ -1955,13 +1997,14 @@
                 function renderBangumiCharacters(container, characters) {
                     characters.map(c => {
                         const characterDiv = document.createElement('div');
-                        characterDiv.style = 'width: 32%; display: flex; gap: .5em;';
+                        characterDiv.style = 'width: 31%; display: flex; margin: .5em;';
                         let embyImgButtonInner = embyImg(c.images.large, 'object-position: top;');
                         if (!c.images.large) {
                             embyImgButtonInner = embyI(iconKeys.person, classes.cardImageIcon);
                         }
                         characterDiv.append(embyImgButton(embyImgButtonInner));
                         const characterRightDiv = document.createElement('div');
+                        characterRightDiv.style.marginLeft = '.5em';
                         const characterNameDiv = document.createElement('div');
                         characterNameDiv.textContent = c.relation + ': ' + c.name;
                         characterRightDiv.append(characterNameDiv);
@@ -2019,7 +2062,7 @@
                         <div style="${styles.embySlider + 'margin-top: 0.3em;'}">
                             <label class="${classes.embyLabel}" style="width:4em;">${lsKeys.timeoutCallbackValue.name}: </label>
                             <div id="${eleIds.timeoutCallbackDiv}" style="width: 15.5em; text-align: center;"></div>
-                            <label id="${eleIds.timeoutCallbackLabel}" style="width:4em;"></label>
+                            <label id="${eleIds.timeoutCallbackLabel}" style="${styles.embySliderLabel}"></label>
                         </div>
                     </div>
                 </div>
@@ -2038,7 +2081,7 @@
                                 <label class="${classes.embyLabel}" style="width:4em;">${lsKeys.bangumiPostPercent.name}: </label>
                                 <div id="${eleIds.bangumiPostPercentDiv}" style="width: 15.5em; text-align: center;"></div>
                                 <label>
-                                    <label id="${eleIds.bangumiPostPercentLabel}" style="width:4em;"></label>
+                                    <label id="${eleIds.bangumiPostPercentLabel}" style="${styles.embySliderLabel}"></label>
                                     <label>%</label>
                                 </label>
                             </div>
@@ -2124,6 +2167,11 @@
                 }
             }
         ));
+        // getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+        //     { label: lsKeys.removeEmojiEnable.name }, lsGetItem(lsKeys.removeEmojiEnable.id), (checked) => {
+        //         lsSetItem(lsKeys.removeEmojiEnable.id, checked);
+        //     }
+        // ));
         getById(eleIds.danmakuChConverDiv, container).append(
             embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
         );
@@ -2240,7 +2288,7 @@
                 <div is="emby-collapse" title="开发者选项">
                     <div class="${classes.collapseContentNav}">
                         <label class="${classes.embyLabel}">调试开关: </label>
-                        <div id="${eleIds.debugCheckbox}"></div>
+                        <div id="${eleIds.debugCheckbox}" class="${classes.embyCheckboxList}" style="${styles.embyCheckboxList}"></div>
                         <label class="${classes.embyLabel}">调试按钮: </label>
                         <div id="${eleIds.debugButton}"></div>
                     </div>
@@ -2357,8 +2405,9 @@
         // }));
         const dialogContainer = document.querySelector('.' + classes.dialogContainer);
         const centeredDialog = dialogContainer.firstChild;
-        let isExist1 = dialogContainer.classList.contains(classes.dialogBackdropOpened);
-        let isExist2 = centeredDialog.classList.contains(classes.dialogBlur);
+        // lsKeys.debugDialogHyalinize
+        const isExist1 = dialogContainer.classList.contains(classes.dialogBackdropOpened);
+        const isExist2 = centeredDialog.classList.contains(classes.dialogBlur);
         const debugDialogHyalinizeOnChange = (checked) => {
             lsSetItem(lsKeys.debugDialogHyalinize.id, checked);
             if (checked) {
@@ -2367,19 +2416,52 @@
                 isExist2 && centeredDialog.classList.remove(classes.dialogBlur);
             } else {
                 centeredDialog.classList.add(classes.dialog);
-                // 跳过魔改版上已经被移除的 css
+                // 跳过魔改版客户端上已经被移除的 css
                 isExist1 && dialogContainer.classList.add(classes.dialogBackdropOpened);
                 isExist2 && centeredDialog.classList.add(classes.dialogBlur);
             }
         }
         const debugDialogHyalinizeChecked = lsGetItem(lsKeys.debugDialogHyalinize.id);
         debugDialogHyalinizeOnChange(debugDialogHyalinizeChecked);
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugDialogHyalinize.name }, debugDialogHyalinizeChecked, debugDialogHyalinizeOnChange));
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugDialogHyalinize.name }
+            , debugDialogHyalinizeChecked, debugDialogHyalinizeOnChange)
+        );
+        // lsKeys.debugDialogWindow
+        const isExist3 = centeredDialog.classList.contains(classes.dialogFullscreen);
+        const isExist4 = centeredDialog.classList.contains(classes.dialogFullscreenLowres);
+        const debugDialogWindowOnChange = (checked) => {
+            lsSetItem(lsKeys.debugDialogWindow.id, checked);
+            isExist3 && centeredDialog.classList.toggle(classes.dialogFullscreen, !checked);
+            isExist4 && centeredDialog.classList.toggle(classes.dialogFullscreenLowres, !checked);
+        }
+        const debugDialogWindowChecked = lsGetItem(lsKeys.debugDialogWindow.id);
+        debugDialogWindowOnChange(debugDialogWindowChecked);
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugDialogWindow.name }
+            , debugDialogWindowChecked, debugDialogWindowOnChange)
+        );
+        // lsKeys.debugDialogRight
+        const debugDialogRightOnChange = (checked) => {
+            lsSetItem(lsKeys.debugDialogRight.id, checked);
+            dialogContainer.classList.toggle(classes.dialogBackdropOpened, !checked);
+            centeredDialog.style = checked ? styles.rightLayout : '';
+            if (checked) {
+                isExist3 && centeredDialog.classList.remove(classes.dialogFullscreen);
+                isExist4 && centeredDialog.classList.remove(classes.dialogFullscreenLowres, !checked);
+            }
+        }
+        const debugDialogRightChecked = lsGetItem(lsKeys.debugDialogRight.id);
+        debugDialogRightOnChange(debugDialogRightChecked);
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugDialogRight.name }
+            , debugDialogRightChecked, debugDialogRightOnChange)
+        );
+        // lsKeys.debugTabIframeEnable
         if (lsGetItem(lsKeys.quickDebugOn.id)) { // @deprecated 已废弃,因跨域无法登录网站,无太大意义
-            debugWrapper.append(embyCheckbox({ label: lsKeys.debugTabIframeEnable.name }, lsGetItem(lsKeys.debugTabIframeEnable.id), (checked) => {
-                lsSetItem(lsKeys.debugTabIframeEnable.id, checked);
-                getById(tabIframeId + 'Btn').style.display = checked ? '' : 'none';
-            }));
+            debugWrapper.append(embyCheckbox({ label: lsKeys.debugTabIframeEnable.name }
+                , lsGetItem(lsKeys.debugTabIframeEnable.id), (checked) => {
+                    lsSetItem(lsKeys.debugTabIframeEnable.id, checked);
+                    getById(tabIframeId + 'Btn').style.display = checked ? '' : 'none';
+                }
+            ));
         }
     }
 
@@ -2427,7 +2509,7 @@
 
     function buildOpenSourceLicense(container) {
         const openSourceWrapper = getById(eleIds.openSourceLicenseDiv, container);
-        Object.entries(openSourceLicense).map(([key, val]) => {
+        objectEntries(openSourceLicense).map(([key, val]) => {
             openSourceWrapper.append(embyALink(val.url, [key, val.name, val.version, val.license].join(' : ')));
         });
     }
@@ -2443,7 +2525,7 @@
                 <div style="${styles.embySlider + 'margin: 0.8em 0;'}">
                     <label class="${classes.embyLabel}" style="width: 5em;">网页高度: </label>
                     <div id="${eleIds.tabIframeHeightDiv}" style="width: 40.5em; text-align: center;"></div>
-                    <label><label id="${eleIds.tabIframeHeightLabel}" style="width:4em;"></label>
+                    <label><label id="${eleIds.tabIframeHeightLabel}" style="${styles.embySliderLabel}"></label>
                     <label>em</label></label>
                 </div>
                 <div id="${eleIds.tabIframeCtrlDiv}"></div>
@@ -2454,7 +2536,7 @@
         container.innerHTML = template.trim();
         getById(eleIds.tabIframeHeightDiv, container).append(embySlider(
             { labelId: eleIds.tabIframeHeightLabel }, { value: '29', min: 28, max: 100, step: 1 }
-            , null, (val, props) => {
+            , (val, props) => {
                 if (val === '28') { val = 'auto'; }
                 onSliderChangeLabel(val, props);
                 getById(eleIds.tabIframe).style.height = val === 'auto' ? val : val + 'em';
@@ -2638,6 +2720,9 @@
     }
 
     function writeLsSeasonInfo(_season_key, newSeasonInfo) {
+        if (!_season_key) {
+            return console.log(`_season_key is undefined, skip`);
+        }
         let seasonInfoListStr = localStorage.getItem(_season_key);
         let seasonInfoList = seasonInfoListStr ? JSON.parse(seasonInfoListStr) : [];
         // 检查是否已经存在相同的 seasonInfo，避免重复添加
@@ -2792,7 +2877,7 @@
      */
     function embyInput(props, onEnter, onChange) {
         const input = document.createElement('input', { is: 'emby-input' });
-        Object.entries(props).forEach(([key, value]) => {
+        objectEntries(props).forEach(([key, value]) => {
             if (typeof value !== 'function') { input.setAttribute(key, value); }
         });
         input.className = classes.embyInput; // searchfields-txtSearch: 半圆角
@@ -2832,7 +2917,7 @@
         // !!! important: this is must setAttribute('is', 'emby-xxx'), unknown reason
         button.setAttribute('is', 'emby-button');
         button.setAttribute('type', 'button');
-        Object.entries(props).forEach(([key, value]) => {
+        objectEntries(props).forEach(([key, value]) => {
             if (key !== 'iconKey' &&  typeof value !== 'function') { button.setAttribute(key, value); }
         });
         if (props.iconKey) {
@@ -2917,7 +3002,7 @@
                 selectElement.classList.add(classes.embySelectTv);
             }
         });
-        Object.entries(props).forEach(([key, value]) => {
+        objectEntries(props).forEach(([key, value]) => {
             if (typeof value !== 'function') { selectElement.setAttribute(key, value); }
         });
         options.forEach((option, index) => {
@@ -2987,7 +3072,7 @@
         const defaultProps = { rows: 10, styleResize: 'vertical', readonly: false };
         props = { ...defaultProps, ...props };
         const textarea = document.createElement('textarea', { is: 'emby-textarea' });
-        Object.entries(props).forEach(([key, value]) => {
+        objectEntries(props).forEach(([key, value]) => {
             if (typeof value !== 'function' && key !== 'readonly' 
                 && key !== 'styleResize' && key !== 'value') { textarea.setAttribute(key, value); }
         });
@@ -3002,8 +3087,8 @@
    /**
     * @param {Object} props {id: 'slider id', labelId: 'label id', ...} will return to the callback
     * @param {Object} options { orient: 'vertical' | 'horizontal' 垂直/水平 }
-    * @param {Function} onChange Trigger after end of tap/swipe
-    * @param {Function} onSliding when init/clicking/sliding, trigger every step
+    * @param {Function} onChange Trigger after end of tap/swipe, AndroidTV use this
+    * @param {Function} onSliding when init/clicking/sliding, trigger every step, AndroidTV not trigger
     *   , but not trigger when init and options.value === options.min
     * @returns HTMLElement
     */
@@ -3017,7 +3102,7 @@
         const slider = document.createElement('input', { is: 'emby-slider' });
         slider.setAttribute('type', 'range');
         if (props.id) { slider.setAttribute('id', props.id); }
-        Object.entries(options).forEach(([key, value]) => slider.setAttribute(key, value));
+        objectEntries(options).forEach(([key, value]) => slider.setAttribute(key, value));
         // other EventListeners : 'beginediting'(every step), 'endediting'(end of tap/swipe)
         if (typeof onChange === 'function') {
             slider.addEventListener('change', e => onChange(e.target.value, props));
@@ -3106,14 +3191,14 @@
     }
 
     function getSettingsJson(space = 4) {
-        return JSON.stringify(Object.fromEntries(Object.entries(lsKeys).map(
+        return JSON.stringify(Object.fromEntries(objectEntries(lsKeys).map(
             ([key, value]) => [value.id, lsGetItem(value.id)])), null, space);
             // ([key, value]) => [value.id, { value: lsGetItem(value.id), name: value.name }])), null, space);
     }
 
     function settingsReset() {
         const defaultSettings = Object.fromEntries(
-            Object.entries(lsKeys)
+            objectEntries(lsKeys)
             .filter(([key, value]) => lsKeys.filterKeywords.id !== value.id)
             .map(([key, value]) => [value.id, value.defaultValue])
         );
@@ -3147,9 +3232,9 @@
      */
     function lsBatchSet(keyValues, needCheck = true) {
         if (needCheck) {
-            return Object.entries(keyValues).reduce((acc, [id, value]) => (acc || lsCheckSet(id, value)), false);
+            return objectEntries(keyValues).reduce((acc, [id, value]) => (acc || lsCheckSet(id, value)), false);
         } else {
-            Object.entries(keyValues).forEach(([key, value]) => lsSetItem(key, value));
+            objectEntries(keyValues).forEach(([key, value]) => lsSetItem(key, value));
         }
     }
     function lsSetItem(id, value) {
@@ -3214,19 +3299,25 @@
             clearTimeout(longPressTimeout);
         }
         const isMobile = OS.isMobile();
-        const startEvent = isMobile ? 'touchstart' : 'mousedown';
-        const endEvent = isMobile ? 'touchend' : 'mouseup';
-        if (target.getAttribute('startFlag') !== '1') {
-            target.addEventListener(startEvent, startLongPress);
-            target.setAttribute('startFlag', '1');
-        }
-        if (target.getAttribute('endFlag') !== '1') {
-            target.addEventListener(endEvent, cancelLongPress);
-            target.setAttribute('endFlag', '1');
-        }
+        let startEventName = isMobile ? 'touchstart' : 'mousedown';
+        let endEventName = isMobile ? 'touchend' : 'mouseup';
+        require(['browser'], (browser) => {
+            if (browser.tv) {
+                startEventName = 'focus';
+                endEventName = 'blur';
+            }
+            if (target.getAttribute('startFlag') !== '1') {
+                target.addEventListener(startEventName, startLongPress);
+                target.setAttribute('startFlag', '1');
+            }
+            if (target.getAttribute('endFlag') !== '1') {
+                target.addEventListener(endEventName, cancelLongPress);
+                target.setAttribute('endFlag', '1');
+            }
+        });
         return () => {
-            target.removeEventListener(startEvent, startLongPress);
-            target.removeEventListener(endEvent, cancelLongPress);
+            target.removeEventListener(startEventName, startLongPress);
+            target.removeEventListener(endEventName, cancelLongPress);
             clearTimeout(longPressTimeout);
         };
     }
@@ -3254,7 +3345,7 @@
         const [playbackManager, events] = await require(['playbackManager', 'events']);
         const player = playbackManager.getCurrentPlayer();
         if (!player) { return; }
-        Object.entries(eventsMap).forEach(([eventName, fn]) => {
+        objectEntries(eventsMap).forEach(([eventName, fn]) => {
             // 无法修改 fn ,会导致引用变更重复添加,events.off 中的 array.indexOf(fn) 返回 -1
             events.off(player, eventName, fn);
             events.on(player, eventName, fn);
@@ -3363,6 +3454,7 @@
             initListener();
             initCss();
         }
+        window.ede.debugUsedItemId = e.detail.params.id ? e.detail.params.id : '';
     });
     document.addEventListener('viewbeforehide', e => e.detail.type === 'video-osd' && beforeDestroy());
 
