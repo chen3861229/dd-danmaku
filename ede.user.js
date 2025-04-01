@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.44
+// @version      1.45
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -23,7 +23,7 @@
     // note02: url 禁止使用相对路径,非 web 环境的根路径为文件路径,非 http
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.44', name: 'Emby Danmaku Extension(Forked form original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.45', name: 'Emby Danmaku Extension(Forked from original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.52', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.8', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -44,7 +44,8 @@
         accessTokenUrl: 'https://next.bgm.tv/demo/access-token',
         getCharacters: (subjectId) => `${bangumiApi.prefix}/subjects/${subjectId}/characters`,
         // need auth
-        getMyself: () => `${bangumiApi.prefix}/me`,
+        getMe: () => `${bangumiApi.prefix}/me`,
+        getUserCollection: (userName, subjectId) => `${bangumiApi.prefix}/users/${userName}/collections/${subjectId}`,
         postUserCollection: (subjectId) => `${bangumiApi.prefix}/users/-/collections/${subjectId}`,
         getUserSubjectEpisodeCollection: (subjectId) => `${bangumiApi.prefix}/users/-/collections/${subjectId}/episodes?offset=0&limit=100`,
         putUserEpisodeCollection: (episodeId ) => `${bangumiApi.prefix}/users/-/collections/-/episodes/${episodeId}`,
@@ -215,11 +216,13 @@
         mergeSimilarTime: { id: 'danmakuMergeSimilarTime', defaultValue: 10, name: '相似度时间窗口秒', min: 1, max: 60, step: 1 },
         filterKeywords: { id: 'danmakuFilterKeywords', defaultValue: '', name: '屏蔽关键词' },
         filterKeywordsEnable: { id: 'danmakuFilterKeywordsEnable', defaultValue: true, name: '屏蔽关键词启用' },
-        osdTitleEnable: { id: 'danmakuOsdTitleEnable', defaultValue: false, name: '播放界面右下角显示弹幕信息' },
-        osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '进度条上显示弹幕每秒内数量折线图' },
-        osdHeaderClockEnable: { id: 'danmakuOsdHeaderClockEnable', defaultValue: false, name: '播放界面头中显示时钟' },
         // removeEmojiEnable: { id: 'danmakuRemoveEmojiEnable', defaultValue: false, name: '移除弹幕中的emoji' },
         engine: { id: 'danmakuEngine', defaultValue: 'canvas', name: '弹幕引擎' },
+        osdTitleEnable: { id: 'danmakuOsdTitleEnable', defaultValue: false, name: '播放界面右下角显示弹幕信息' },
+        osdLineChartEnable: { id: 'danmakuOsdLineChartEnable', defaultValue: false, name: '弹幕高能进度条' },
+        osdLineChartSkipFilter: { id: 'danmakuOsdLineChartSkipFilter', defaultValue: false, name: '弹幕高能进度条免过滤' },
+        osdLineChartTime: { id: 'danmakuOsdLineChartTime', defaultValue: 10, name: '弹幕高能进度条颗粒度秒', min: 1, max: 60, step: 1  },
+        osdHeaderClockEnable: { id: 'danmakuOsdHeaderClockEnable', defaultValue: false, name: '播放界面头中显示时钟' },
         timeoutCallbackUnit: { id: 'danmakuTimeoutCallbackUnit', defaultValue: 1, name: '定时单位' },
         timeoutCallbackValue: { id: 'danmakuTimeoutCallbackValue', defaultValue: 0, name: '定时值' },
         bangumiEnable: { id: 'danmakuBangumiEnable', defaultValue: false, name: '启用并填写个人令牌' },
@@ -238,12 +241,20 @@
         debugDialogWindow: { id: 'danmakuDebugDialogWindow', defaultValue: false, name: '弹窗窗口化' },
         debugDialogRight: { id: 'danmakuDebugDialogRight', defaultValue: false, name: '弹窗靠右布局' }, // Emby Android 上暂时存在 bug
         debugTabIframeEnable: { id: 'danmakuDebugTabIframeEnable', defaultValue: false, name: '打开内嵌网页' },
+        debugH5VideoAdapterEnable: { id: 'danmakuDebugH5VideoAdapterEnable', defaultValue: false, name: '查看视频适配器情况' },
         quickDebugOn: { id: 'danmakuQuickDebugOn', defaultValue: false, name: '快速调试' },
         customeCorsProxyUrl: { id: 'danmakuCustomeCorsProxyUrl', defaultValue: corsProxy, name: '跨域代理前缀' },
         customeDanmakuUrl: { id: 'danmakuCustomeDanmakuUrl', defaultValue: requireDanmakuPath, name: '弹幕引擎依赖' },
         customeGetCommentUrl: { id: 'danmakuCustomeGetCommentUrl', defaultValue: getApiTl(dandanplayApi.getComment), name: '获取指定弹幕库的所有弹幕' },
         customeGetExtcommentUrl: { id: 'danmakuCustomeGetExtcommentUrl', defaultValue: getApiTl(dandanplayApi.getExtcomment), name: '获取指定第三方url的弹幕' },
         customePosterImgUrl: { id: 'danmakuCustomePosterImgUrl', defaultValue: getApiTl(dandanplayApi.posterImg), name: '媒体海报' },
+    };
+    const lsLocalKeys = {
+        animePrefix: '_anime_id_rel_',
+        animeSeasonPrefix: '_anime_season_rel_',
+        animeEpisodePrefix: '_episode_id_rel_',
+        bangumiEpInfoPrefix: '_bangumi_episode_id_rel_',
+        bangumiMe: '_bangumi_me',
     };
     const eleIds = {
         danmakuSwitchBtn: 'danmakuSwitchBtn',
@@ -342,6 +353,9 @@
         openSourceLicenseDiv: 'openSourceLicenseDiv',
         videoOsdDanmakuTitle: 'videoOsdDanmakuTitle',
         extCheckboxDiv: 'extCheckboxDiv',
+        osdCheckboxDiv: 'osdCheckboxDiv',
+        osdLineChartDiv: 'osdLineChartDiv',
+        osdLineChartTimeDiv: "osdLineChartTimeDiv",
         danmuPluginDiv: 'danmuPluginDiv',
         danmakuSettingBtnDebug: 'danmakuSettingBtnDebug',
         progressBarLineChart: 'progressBarLineChart',
@@ -580,33 +594,41 @@
         }
         if (_media.getAttribute('ede_listening')) { return; }
         console.log('正在初始化Listener');
-        playbackEventsOn({ 'playbackstart': (e, state) => {
-            console.log(e.type);
-            loadDanmaku(LOAD_TYPE.INIT);
-        }});
-        playbackEventsOn({ 'playbackstop': (e, state) => {
-            console.log(e.type);
-            onPlaybackStop(e, state);
-            removeHeaderClock();
-            danmakuAutoFilterCancel();
-        } });
+        playbackEventsRefresh({ 'playbackstart': onPlaybackStart });
+        playbackEventsRefresh({ 'playbackstop': onPlaybackStop });
         _media.setAttribute('ede_listening', true);
-        document.addEventListener('video-osd-show', (e) => {
-            console.log(e.type, e);
-            if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
-                buildProgressBarChart(20);
-            }
-            addHeaderClock();
-        });
-        document.addEventListener('video-osd-hide', (e) => {
-            console.log(e.type, e);
-            removeHeaderClock();
-        });
+        refreshEventListener({ 'video-osd-show': onVideoOsdShow });
+        refreshEventListener({ 'video-osd-hide': onVideoOsdHide });
         console.log('Listener初始化完成');
         if (OS.isAndroidEmbyNoisyX()) {
             console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
             loadDanmaku(LOAD_TYPE.INIT);
         }
+    }
+
+    function onPlaybackStart(e, state) {
+        console.log(e.type);
+        loadDanmaku(LOAD_TYPE.INIT);
+    }
+
+    function onPlaybackStop(e, state) {
+        console.log(e.type);
+        onPlaybackStopPct(e, state);
+        removeHeaderClock();
+        danmakuAutoFilterCancel();
+    }
+
+    function onVideoOsdShow(e) {
+        console.log(e.type, e);
+        if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+            buildProgressBarChart(20);
+        }
+        addHeaderClock();
+    }
+
+    function onVideoOsdHide(e) {
+        console.log(e.type, e);
+        removeHeaderClock();
     }
 
     function initUI() {
@@ -708,7 +730,7 @@
         return extComments;
     }
 
-    function onPlaybackStop(e, state) {
+    function onPlaybackStopPct(e, state) {
         if (!state.NowPlayingItem) { return console.log('跳过 Web 端自身错误触发的第二次播放停止事件'); }
         console.log(e.type);
         const positionTicks = state.PlayState.PositionTicks;
@@ -736,7 +758,7 @@
 
     async function getEpisodeBangumiRel() {
         const episode_info = window.ede.episode_info;
-        const _bangumi_key = `_bangumi_episode_id_rel_${episode_info.episodeId}`;
+        const _bangumi_key = lsLocalKeys.bangumiEpInfoPrefix + episode_info.episodeId;
         let bangumiInfoLs = localStorage.getItem(_bangumi_key);
         if (bangumiInfoLs) {
             bangumiInfoLs = JSON.parse(bangumiInfoLs);
@@ -778,6 +800,20 @@
         const bangumiInfo = await getEpisodeBangumiRel();
         const { subjectId, bgmEpisodeIndex, } = bangumiInfo;
         const episodeIndex = bgmEpisodeIndex ? bgmEpisodeIndex : bangumiInfo.episodeIndex;
+        console.log('准备校验 Bangumi 条目收藏状态是否为看过');
+        let bangumiMe = localStorage.getItem(lsLocalKeys.bangumiMe);
+        if (bangumiMe) {
+            bangumiMe = JSON.parse(bangumiMe);
+        } else {
+            bangumiMe = await fetchBangumiApiGetMe(token);
+        }
+        let msg = '';
+        const bangumiUserColl = await fetchJson(bangumiApi.getUserCollection(bangumiMe.username, subjectId), { token });
+        if (bangumiUserColl.type === 2) { // 看过状态
+            msg = 'Bangumi 条目已为看过状态,跳过更新';
+            console.log(msg, bangumiUserColl);
+            throw new Error(msg);
+        }
         console.log('准备修改 Bangumi 条目收藏状态为在看, 如果不存在则创建, 如果存在则修改');
         let body = { type: 3 }; // 在看状态
         await fetchJson(bangumiApi.postUserCollection(subjectId), { token, body });
@@ -792,8 +828,9 @@
         const bangumiEpColl = bangumiInfo.bangumiEpsRes.data[episodeIndex];
         const bangumiEp = bangumiEpColl.episode;
         if (bangumiEpColl.type === 2) {
-            console.log('Bangumi 已是看过状态,跳过更新', bangumiEp);
-            throw new Error('Bangumi 已是看过状态,跳过更新');
+            msg = 'Bangumi 章节收藏已是看过状态,跳过更新';
+            console.log(msg, bangumiEp);
+            throw new Error(msg);
         }
         console.log('准备更新 Bangumi 章节收藏状态, 详情: ', bangumiEp);
         body.type = 2; // 看过状态
@@ -875,9 +912,9 @@
             animeName = item.Name;
             episode = 'movie';
         }
-        let _id_key = '_anime_id_rel_' + _id;
-        let _season_key = '_anime_season_rel_' + _id;
-        let _episode_key = '_episode_id_rel_' + _id + '_' + episode;
+        let _id_key = lsLocalKeys.animePrefix + _id;
+        let _season_key = lsLocalKeys.animeSeasonPrefix + _id;
+        let _episode_key = lsLocalKeys.animeEpisodePrefix + _id + '_' + episode;
         if (window.localStorage.getItem(_id_key)) {
             animeId = window.localStorage.getItem(_id_key);
         }
@@ -1074,7 +1111,6 @@
         let _comments = danmakuFilter(commentsParsed);
         console.log('弹幕加载成功: ' + _comments.length);
 
-        const _container = document.querySelector(mediaContainerQueryStr);
         const _media = document.querySelector(mediaQueryStr);
         if (!_media) {
             // this only working on quickDebug
@@ -1099,6 +1135,8 @@
         // wrapper.style.opacity = lsGetItem(lsKeys.fontOpacity.id); // 弹幕整体透明度
         wrapper.style.top = wrapperTop + 'px';
         wrapper.style.pointerEvents = 'none';
+        // const _container = document.querySelector(mediaContainerQueryStr);
+        const _container = await waitForElement(mediaContainerQueryStr);
         _container.prepend(wrapper);
         let _speed = 144 * lsGetItem(lsKeys.speed.id);
         window.ede.danmaku = new Danmaku({
@@ -1145,7 +1183,11 @@
         if (chartEle) {
             chartEle.remove();
         }
-        const comments = window.ede.danmaku ? window.ede.danmaku.comments : [];
+        if (!window.ede.danmaku) {
+            return;
+        }
+        const osdLineChartSkipFilter = lsGetItem(lsKeys.osdLineChartSkipFilter.id);
+        const comments = osdLineChartSkipFilter ? window.ede.commentsParsed : window.ede.danmaku.comments;
         const container = getByClass(classes.videoOsdPositionSliderContainer);
         if (!comments || !container || (comments && comments.length === 0)) {
             return;
@@ -1162,7 +1204,7 @@
         const ctx = bulletChartCanvas.getContext('2d');
         // 计算每个时间点的弹幕数量
         const maxTime = Math.max(...comments.map(c => c.time));
-        const timeStep = 1;
+        const timeStep = lsGetItem(lsKeys.osdLineChartTime.id);
         const timeCounts = Array.from({ length: Math.ceil(maxTime / timeStep) }, () => 0);
         comments.forEach(c => {
             const index = Math.floor(c.time / timeStep);
@@ -2352,6 +2394,19 @@
                         </div>
                     </div>
                 </div>
+                <div is="emby-collapse" title="播放界面设置">
+                    <div class="${classes.collapseContentNav}">
+                        <div id="${eleIds.osdCheckboxDiv}" class="${classes.embyCheckboxList}" style="${styles.embyCheckboxList}"></div>
+                        <div>
+                            <div id="${eleIds.osdLineChartDiv}" class="${classes.embyCheckboxList}" style="${styles.embyCheckboxList}"></div>
+                            <div style="${styles.embySlider}">
+                                <label class="${classes.embyLabel}" style="width: 12em;">${lsKeys.osdLineChartTime.name}: </label>
+                                <div id="${eleIds.osdLineChartTimeDiv}" style="width: 15.5em; text-align: center;"></div>
+                                <label style="${styles.embySliderLabel}"></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div is="emby-collapse" title="播放设置">
                     <div class="${classes.collapseContentNav}">
                         <label class="${classes.embyLabel}">单次定时执行: </label>
@@ -2400,6 +2455,7 @@
         container.innerHTML = template.trim();
         buildDanmakuFilterSetting(container);
         buildExtSetting(container);
+        buildOsdSetting();
         buildPlaySetting(container);
         buildBangumiSetting(container);
         buildCustomUrlSetting(container);
@@ -2460,7 +2516,21 @@
     }
 
     function buildExtSetting(container) {
-        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+        // getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+        //     { label: lsKeys.removeEmojiEnable.name }, lsGetItem(lsKeys.removeEmojiEnable.id), (checked) => {
+        //         lsSetItem(lsKeys.removeEmojiEnable.id, checked);
+        //     }
+        // ));
+        getById(eleIds.danmakuChConverDiv, container).append(
+            embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
+        );
+        getById(eleIds.danmakuEngineDiv, container).append(
+            embyTabs(danmakuEngineOpts, lsGetItem(lsKeys.engine.id), 'id', 'name', doDanmakuEngineSelect)
+        );
+    }
+
+    function buildOsdSetting() {
+        getById(eleIds.osdCheckboxDiv).append(embyCheckbox(
             { label: lsKeys.osdTitleEnable.name }, lsGetItem(lsKeys.osdTitleEnable.id), (checked) => {
                 lsSetItem(lsKeys.osdTitleEnable.id, checked);
                 const videoOsdContainer = document.querySelector(`${mediaContainerQueryStr} .videoOsdSecondaryText`);
@@ -2472,7 +2542,13 @@
                 }
             }
         ));
-        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
+        getById(eleIds.osdCheckboxDiv).append(embyCheckbox(
+            { label: lsKeys.osdHeaderClockEnable.name }, lsGetItem(lsKeys.osdHeaderClockEnable.id), (checked) => {
+                lsSetItem(lsKeys.osdHeaderClockEnable.id, checked);
+                checked ? addHeaderClock() : removeHeaderClock();
+            }
+        ));
+        getById(eleIds.osdLineChartDiv).append(embyCheckbox(
             { label: lsKeys.osdLineChartEnable.name }, lsGetItem(lsKeys.osdLineChartEnable.id), (checked) => {
                 lsSetItem(lsKeys.osdLineChartEnable.id, checked);
                 const progressBarLineChart = getById(eleIds.progressBarLineChart);
@@ -2483,22 +2559,15 @@
                 }
             }
         ));
-        getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
-            { label: lsKeys.osdHeaderClockEnable.name }, lsGetItem(lsKeys.osdHeaderClockEnable.id), (checked) => {
-                lsSetItem(lsKeys.osdHeaderClockEnable.id, checked);
-                checked ? addHeaderClock() : removeHeaderClock();
+        getById(eleIds.osdLineChartDiv).append(embyCheckbox(
+            { label: lsKeys.osdLineChartSkipFilter.name }, lsGetItem(lsKeys.osdLineChartSkipFilter.id), (checked) => {
+                lsSetItem(lsKeys.osdLineChartSkipFilter.id, checked);
+                buildProgressBarChart(20);
             }
         ));
-        // getById(eleIds.extCheckboxDiv, container).append(embyCheckbox(
-        //     { label: lsKeys.removeEmojiEnable.name }, lsGetItem(lsKeys.removeEmojiEnable.id), (checked) => {
-        //         lsSetItem(lsKeys.removeEmojiEnable.id, checked);
-        //     }
-        // ));
-        getById(eleIds.danmakuChConverDiv, container).append(
-            embyTabs(danmakuChConverOpts, window.ede.chConvert, 'id', 'name', doDanmakuChConverChange)
-        );
-        getById(eleIds.danmakuEngineDiv, container).append(
-            embyTabs(danmakuEngineOpts, lsGetItem(lsKeys.engine.id), 'id', 'name', doDanmakuEngineSelect)
+        getById(eleIds.osdLineChartTimeDiv).append(
+            embySlider({ lsKey: lsKeys.osdLineChartTime, needReload: false }
+                , (val, opts) => { onSliderChange(val, opts);buildProgressBarChart(20); }, onSliderChangeLabel)
         );
     }
 
@@ -2557,15 +2626,26 @@
         const bangumiToken = getById(eleIds.bangumiTokenInput).value.trim();
         lsSetItem(lsKeys.bangumiToken.id, bangumiToken);
         const label = getById(eleIds.bangumiTokenLabel);
-        fetchJson(bangumiApi.getMyself(), { token: bangumiToken }).then(res => {
+        fetchBangumiApiGetMe(bangumiToken).then(res => {
             label.innerText = 'Bangumi Token 验证成功';
             label.style.color = 'green';
-            console.log('bangumiApi.getMyself()', res);
         }).catch(error => {
             label.innerText = 'Bangumi Token 验证失败';
             label.style.color = 'red';
             throw error;
         });
+    }
+
+    async function fetchBangumiApiGetMe(bangumiToken) {
+        try {
+            const res = await fetchJson(bangumiApi.getMe(), { token: bangumiToken });
+            console.log('Bangumi Token 验证成功', res);
+            localStorage.setItem(lsLocalKeys.bangumiMe, JSON.stringify(res));
+            return res;
+        } catch (error) {
+            console.error('Bangumi Token 验证失败', error);
+            throw error;
+        }
     }
 
     function buildCustomUrlSetting(container) {
@@ -2657,33 +2737,39 @@
 
     function buildDebugCheckbox(container) {
         const debugWrapper = getById(eleIds.debugCheckbox, container);
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugShowDanmakuWrapper.name }, lsGetItem(lsKeys.debugShowDanmakuWrapper.id), (checked) => {
-            lsSetItem(lsKeys.debugShowDanmakuWrapper.id, checked);
-            const wrapper = getById(eleIds.danmakuWrapper);
-            wrapper.style.backgroundColor = checked ? styles.colors.highlight : '';
-            if (!checked) { return; }
-            console.log(`弹幕容器(#${eleIds.danmakuWrapper})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
-            const stage = wrapper.firstChild;
-            console.log(`实际舞台(${stage.tagName})宽高像素:`, stage.offsetWidth, stage.offsetHeight);
-        }));
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugShowDanmakuCtrWrapper.name }, lsGetItem(lsKeys.debugShowDanmakuCtrWrapper.id), (checked) => {
-            lsSetItem(lsKeys.debugShowDanmakuCtrWrapper.id, checked);
-            const wrapper = getById(eleIds.danmakuCtr);
-            wrapper.style.backgroundColor = checked ? styles.colors.highlight : '';
-            if (!checked) { return; }
-            console.log(`按钮容器(#${eleIds.danmakuCtr})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
-        }));
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugReverseDanmu.name }, lsGetItem(lsKeys.debugReverseDanmu.id), (checked) => {
-            lsSetItem(lsKeys.debugReverseDanmu.id, checked);
-            const comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
-            comments.map(c => {
-                const values = c.p.split(',');
-                values[1]= { '6': '1', '1': '6', '5': '4', '4': '5' }[values[1]];
-                c.p = values.join();
-            });
-            console.log('已' + lsKeys.debugReverseDanmu.name);
-            createDanmaku(comments);
-        }));
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugShowDanmakuWrapper.name }
+            , lsGetItem(lsKeys.debugShowDanmakuWrapper.id), (checked) => {
+                lsSetItem(lsKeys.debugShowDanmakuWrapper.id, checked);
+                const wrapper = getById(eleIds.danmakuWrapper);
+                wrapper.style.backgroundColor = checked ? styles.colors.highlight : '';
+                if (!checked) { return; }
+                console.log(`弹幕容器(#${eleIds.danmakuWrapper})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
+                const stage = wrapper.firstChild;
+                console.log(`实际舞台(${stage.tagName})宽高像素:`, stage.offsetWidth, stage.offsetHeight);
+            }
+        ));
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugShowDanmakuCtrWrapper.name }
+            , lsGetItem(lsKeys.debugShowDanmakuCtrWrapper.id), (checked) => {
+                lsSetItem(lsKeys.debugShowDanmakuCtrWrapper.id, checked);
+                const wrapper = getById(eleIds.danmakuCtr);
+                wrapper.style.backgroundColor = checked ? styles.colors.highlight : '';
+                if (!checked) { return; }
+                console.log(`按钮容器(#${eleIds.danmakuCtr})宽高像素:`, wrapper.offsetWidth, wrapper.offsetHeight);
+            }
+        ));
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugReverseDanmu.name }
+            , lsGetItem(lsKeys.debugReverseDanmu.id), (checked) => {
+                lsSetItem(lsKeys.debugReverseDanmu.id, checked);
+                const comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
+                comments.map(c => {
+                    const values = c.p.split(',');
+                    values[1]= { '6': '1', '1': '6', '5': '4', '4': '5' }[values[1]];
+                    c.p = values.join();
+                });
+                console.log('已' + lsKeys.debugReverseDanmu.name);
+                createDanmaku(comments);
+            }
+        ));
         const toggleDanmuColor = (checked, lsKey, colorFn) => {
             lsSetItem(lsKey.id, checked);
             let comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
@@ -2702,14 +2788,18 @@
             }
             createDanmaku(comments);
         };
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugRandomDanmuColor.name }, lsGetItem(lsKeys.debugRandomDanmuColor.id), (checked) => {
-            toggleDanmuColor(checked, lsKeys.debugRandomDanmuColor
-                , () => parseInt(Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'), 16));
-        }));
-        debugWrapper.append(embyCheckbox({ label: lsKeys.debugForceDanmuWhite.name }, lsGetItem(lsKeys.debugForceDanmuWhite.id), (checked) => {
-            toggleDanmuColor(checked, lsKeys.debugForceDanmuWhite
-                , () => parseInt(styles.colors.info.toString(16).padStart(6, '0'), 16));
-        }));
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugRandomDanmuColor.name }
+            , lsGetItem(lsKeys.debugRandomDanmuColor.id), (checked) => {
+                toggleDanmuColor(checked, lsKeys.debugRandomDanmuColor
+                    , () => parseInt(Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'), 16));
+            }
+        ));
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugForceDanmuWhite.name }
+            , lsGetItem(lsKeys.debugForceDanmuWhite.id), (checked) => {
+                toggleDanmuColor(checked, lsKeys.debugForceDanmuWhite
+                    , () => parseInt(styles.colors.info.toString(16).padStart(6, '0'), 16));
+            }
+        ));
         // debugWrapper.append(embyCheckbox({ label: lsKeys.debugGenerateLarge.name }, lsGetItem(lsKeys.debugGenerateLarge.id), (checked) => {
         //     lsSetItem(lsKeys.debugGenerateLarge.id, checked);
         //     let intervalId;
@@ -2784,6 +2874,17 @@
                 }
             ));
         }
+        // lsKeys.debugH5VideoAdapterEnable
+        const h5VideoAdapter = getById(eleIds.h5VideoAdapter);
+        if (h5VideoAdapter) {
+            debugWrapper.append(embyCheckbox({ label: lsKeys.debugH5VideoAdapterEnable.name }
+                , lsGetItem(lsKeys.debugH5VideoAdapterEnable.id), (checked) => {
+                    lsSetItem(lsKeys.debugH5VideoAdapterEnable.id, checked);
+                    h5VideoAdapter.style.display = checked ? '' : 'none';
+                    h5VideoAdapter.style.backgroundColor = checked ? styles.colors.highlight : '';
+                }
+            ));
+        }
     }
 
     function buildDebugButton(container) {
@@ -2815,7 +2916,7 @@
             }
         }));
         debugWrapper.append(embyButton({ label: '清空章节引用缓存', class: classes.embyButtons.submit, style: 'margin: 0.3em;' }, () => {
-            lsBatchRemove(['_episode_id_rel_', '_bangumi_episode_id_rel_']);
+            lsBatchRemove([lsLocalKeys.animeEpisodePrefix, lsLocalKeys.bangumiEpInfoPrefix]);
             console.log('已清空章节引用缓存');
             embyToast({ text: '已清空章节引用缓存' });
         }));
@@ -3118,11 +3219,12 @@
     function onSliderChange(val, opts) {
         onSliderChangeLabel(val, opts);
         if (opts.key && lsCheckSet(opts.key, val)) {
-            if (opts.needReload === undefined) {
-                opts.needReload = true;
+            let needReload = opts.needReload === undefined ? true : opts.needReload;
+            if (opts.isManual) {
+                needReload = false;
             }
-            console.log(`${opts.key} changed to ${val}, needReload: ${opts.needReload}`);
-            if (opts.needReload) {
+            console.log(`${opts.key} changed to ${val}, needReload: ${needReload}`);
+            if (needReload) {
                 changeFontStylePreview();
                 loadDanmaku(LOAD_TYPE.RELOAD);
             }
@@ -3444,7 +3546,7 @@
         // other EventListeners : 'beginediting'(every step), 'endediting'(end of tap/swipe)
         if (typeof onChange === 'function') {
             slider.addEventListener('change', e => {
-                opts.needReload = e.isInit ? false : undefined;
+                opts.isManual = e.isManual;
                 const nextEle = e.target.parentNode.nextElementSibling;
                 opts.labelEle = nextEle.children.length > 0 ? nextEle.children[0] : nextEle;
                 return onChange(e.target.value, opts);
@@ -3461,7 +3563,7 @@
             slider.setValue(options.value);
             waitForElement({ element: slider, needParent: true }, (ele) => {
                 const e = new Event('change');
-                e.isInit = true;
+                e.isManual = true;
                 slider.dispatchEvent(e);
             });
         }
@@ -3620,38 +3722,52 @@
      * @param {function} callback - 等待目标获取成功后的回调函数,参数为元素
      * @param {number} [timeout=10000] - 超时时间,默认10秒,0则不设置超时
      * @param {number} [interval=check_interval] - 检查间隔,默认200ms
-     * */
+     * @returns {Promise<HTMLElement|null>} - 返回一个 Promise 对象:
+     *   - 如果目标元素在超时时间内被找到,Promise 将 resolve 为目标元素 (HTMLElement)
+     *   - 如果超时且未找到目标元素,Promise 将 reject 为一个 Error 对象,表示查找失败
+    */
     function waitForElement(target, callback, timeout = 10000, interval = check_interval) {
         let intervalId = null;
         let timeoutId = null;
         const isSelector = typeof target === 'string';
         const elementMark = isSelector ? target : target.element.tagName;
-        function checkElement() {
-            console.log(`waitForElement: checking element[${elementMark}]`);
-            let element = null;
-            if (isSelector) {
-                element = document.querySelector(target);
-            } else {
-                if (target.needParent) {
-                    element = target.element.parentNode;
+    
+        const promise = new Promise((resolve, reject) => {
+            function checkElement() {
+                console.log(`waitForElement: checking element[${elementMark}]`);
+                let element = null;
+                if (isSelector) {
+                    element = document.querySelector(target);
                 } else {
-                    element = target.element;
+                    if (target.needParent) {
+                        element = target.element.parentNode;
+                    } else {
+                        element = target.element;
+                    }
+                }
+                if (element) {
+                    clearInterval(intervalId);
+                    clearTimeout(timeoutId);
+                    if (callback) {
+                        callback(element);
+                    }
+                    resolve(element);
                 }
             }
-            if (element) {
-                clearInterval(intervalId);
-                clearTimeout(timeoutId);
-                callback(element);
+    
+            intervalId = setInterval(checkElement, interval);
+            window.ede.destroyIntervalIds.push(intervalId);
+    
+            if (timeout > 0) {
+                timeoutId = setTimeout(() => {
+                    clearInterval(intervalId);
+                    console.log(`waitForElement: unable to find element[${elementMark}], timeout: ${timeout}`);
+                    reject(new Error(`Element [${elementMark}] not found within ${timeout}ms`));
+                }, timeout);
             }
-        }
-        intervalId = setInterval(checkElement, interval);
-        window.ede.destroyIntervalIds.push(intervalId);
-        if (timeout > 0) {
-            timeoutId = setTimeout(() => {
-                clearInterval(intervalId);
-                console.log(`waitForElement: unable to find element[${elementMark}], timeout: ${timeout}`);
-            }, timeout);
-        }
+        });
+    
+        return promise;
     }
 
     function addEasterEggListener() {
@@ -3730,8 +3846,8 @@
         const clockElement = document.createElement('div');
         clockElement.id = 'headerClock';
         warpper.append(clockElement);
-    
-        const intervalId = setInterval(() => {
+
+        function updateClock() {
             const timeString = new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             clockElement.textContent = timeString;
             // console.log(timeString);
@@ -3739,14 +3855,28 @@
             if (!headerClockEle) {
                 clearInterval(intervalId);
             }
-        }, 1000);
+        }
+        updateClock();
+        const intervalId = setInterval(updateClock, 1000);
     
         window.ede.destroyIntervalIds.push(intervalId);
         return intervalId;
     }
 
-    // from emby videoosd.js bindToPlayer events, warning: not dom event
-    async function playbackEventsOn(eventsMap) {
+    function refreshEventListener(eventsMap) {
+        objectEntries(eventsMap).forEach(([eventName, fn]) => {
+            document.removeEventListener(eventName, fn);
+            document.addEventListener(eventName, fn);
+        });
+    }
+
+    /**
+     * 添加事件并先移除事件
+     * from emby videoosd.js bindToPlayer events, warning: not dom event
+     * @param {Object} eventsMap { eventName: fn } fn 请勿使用匿名函数,off 时无法移除事件
+     * @returns null
+     */
+    async function playbackEventsRefresh(eventsMap) {
         const [playbackManager, events] = await require(['playbackManager', 'events']);
         const player = playbackManager.getCurrentPlayer();
         if (!player) { return; }
@@ -3757,7 +3887,7 @@
         });
     }
 
-    function initH5VideoAdapter() {
+    async function initH5VideoAdapter() {
         let _media = document.querySelector(mediaQueryStr);
         if (_media) {
             if (_media.id) { // 若是手动创建的<video>
@@ -3777,8 +3907,9 @@
         _media.play();
         videoTimeUpdateInterval(_media, true);
 
+        // 以下暂未遇到匿名函数导致的事件重复,等出现时再匿名转命名函数
         require(['playbackManager'], (playbackManager) => {
-            playbackEventsOn({
+            playbackEventsRefresh({
                 'timeupdate': (e) => {
                     // conver to seconds from Ticks
                     const realCurrentTime = playbackManager.currentTime(playbackManager.getCurrentPlayer()) / 1e7;
@@ -3792,10 +3923,13 @@
                         _media.dispatchEvent(new Event('seeking'));
                         console.warn('seeking', realCurrentTime, mediaTime);
                     }
+                    if (lsGetItem(lsKeys.debugH5VideoAdapterEnable.id)) {
+                        console.warn(`${eleIds.h5VideoAdapter}, currentTime: ${_media.currentTime}, playbackRate: ${_media.playbackRate}`);
+                    }
                 },
             });
         });
-        playbackEventsOn({
+        playbackEventsRefresh({
             'pause': (e) => {
                 console.warn(e.type);
                 _media.dispatchEvent(new Event('pause'));
@@ -3822,7 +3956,10 @@
         }
     }
 
-    function beforeDestroy() {
+    function beforeDestroy(e) {
+        if (e.detail.type !== 'video-osd') {
+            return;
+        }
         // 此段销毁不重要,可有可无,仅是规范使用,清除弹幕,但未销毁 danmaku 实例
         if (window.ede.danmaku) {
             window.ede.danmaku.clear();
@@ -3832,7 +3969,10 @@
         if (danmakuCtr) {
             danmakuCtr.remove();
         }
-        // getById(eleIds.h5VideoAdapter).remove();
+        // const h5VideoAdapterEle = getById(eleIds.h5VideoAdapter);
+        // if (h5VideoAdapterEle) {
+        //     h5VideoAdapterEle.remove();
+        // }
         // 销毁平滑补充 timeupdate 定时器
         videoTimeUpdateInterval(null, false);
         // 销毁可能残留的定时器
@@ -3841,8 +3981,7 @@
         lsSetItem(lsKeys.timelineOffset.id, lsKeys.timelineOffset.defaultValue);
     }
 
-    // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
-    document.addEventListener('viewshow', function (e) {
+    function onViewShow(e) {
         console.log(e.type, e);
         customeUrl.init();
         lsGetItem(lsKeys.quickDebugOn.id) && !getById(eleIds.danmakuSettingBtnDebug) && quickDebug();
@@ -3859,7 +3998,10 @@
             initCss();
         }
         window.ede.itemId = e.detail.params.id ? e.detail.params.id : '';
-    });
-    document.addEventListener('viewbeforehide', e => e.detail.type === 'video-osd' && beforeDestroy());
+    }
+
+    // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
+    refreshEventListener({ 'viewshow': onViewShow });
+    refreshEventListener({ 'viewbeforehide': beforeDestroy });
 
 })();
