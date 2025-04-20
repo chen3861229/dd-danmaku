@@ -1601,8 +1601,7 @@
             );
         }
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
-        // const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
-        const fontStyle = lsGetItem(lsKeys.fontStyle.id);
+        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
         const fontFamily = lsGetItem(lsKeys.fontFamily.id);
         // 弹幕透明度
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
@@ -1757,7 +1756,7 @@
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.filterLevel.name}: </label>
                         <div id="${eleIds.filterLevelDiv}" style="width: 15.5em; text-align: center;"></div>
-                        <label style="${styles.embySliderLabel}">0</label>
+                        <label style="${styles.embySliderLabel}"></label>
                     </div>
                     <div style="${styles.embySlider}">
                         <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.heightPercent.name}: </label>
@@ -1803,7 +1802,7 @@
                             <div style="${styles.embySlider}">
                                 <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontStyle.name}: </label>
                                 <div id="${eleIds.danmakuFontStyleDiv}" style="width: 15.5em; text-align: center;"></div>
-                                <label style="${styles.embySliderLabel}">normal</label>
+                                <label style="${styles.embySliderLabel}"></label>
                             </div>
                             <div id="${eleIds.fontFamilyCtrl}" style="margin: 0.6em 0;"></div>
                             <div style="${styles.embySlider}">
@@ -1919,10 +1918,11 @@
         );
         getById(eleIds.danmakuFontStyleDiv).append(
             embySlider({ lsKey: lsKeys.fontStyle }
-            , (val, opts) => onSliderChange(styles.fontStyles[val].id, opts)
+            , (val, opts) => {
+                opts.label = styles.fontStyles[val].id;
+                onSliderChange(val, opts);
+            }
             , (val, opts) => onSliderChangeLabel(styles.fontStyles[val].id, opts))
-            // , (val, opts) => onSliderChange(styles.fontStyles[val].name, opts)
-            // , (val, opts) => onSliderChangeLabel(styles.fontStyles[val].name, opts))
         );
         buildFontFamilySetting();
     }
@@ -2044,8 +2044,7 @@
     function changeFontStylePreview() {
         const fontStylePreview = getById(eleIds.fontStylePreview);
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
-        // const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
-        const fontStyle = lsGetItem(lsKeys.fontStyle.id);
+        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
         const fontFamily = lsGetItem(lsKeys.fontFamily.id);
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
         const baseColor = Number(styles.colors.info).toString(16).padStart(6, '0');
@@ -3230,7 +3229,7 @@
     }
 
     function onSliderChange(val, opts) {
-        onSliderChangeLabel(val, opts);
+        onSliderChangeLabel(opts.label ? opts.label : val, opts);
         if (opts.key && lsCheckSet(opts.key, val)) {
             let needReload = opts.needReload === undefined ? true : opts.needReload;
             if (opts.isManual) {
@@ -3575,7 +3574,7 @@
                 return onSliding(e.target.value, opts);
             });
         }
-        if (options.value) {
+        if (options.value || options.value === 0) {
             slider.setValue(options.value);
             waitForElement({ element: slider, needParent: true }, (ele) => {
                 const e = new Event('change');
