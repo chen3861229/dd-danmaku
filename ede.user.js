@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.45
+// @version      1.46
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -23,7 +23,7 @@
     // note02: url 禁止使用相对路径,非 web 环境的根路径为文件路径,非 http
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.45', name: 'Emby Danmaku Extension(Forked from original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.46', name: 'Emby Danmaku Extension(Forked from original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.52', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.8', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
@@ -456,6 +456,7 @@
         }
         return [];
     }
+    let browser = null;
     const OS = {
         isAndroid: () => /android/i.test(navigator.userAgent),
         isIOS: () => /iPad|iPhone|iPod/i.test(navigator.userAgent),
@@ -466,6 +467,8 @@
         isUbuntu: () => /Ubuntu/i.test(navigator.userAgent),
         isAndroidEmbyNoisyX: () => OS.isAndroid() && ApiClient.appVersion().includes('-'),
         isEmbyNoisyX: () => ApiClient.appVersion().includes('-'),
+        isEmbyTheater: () => browser.windows && browser.electron,
+        isEmbyUWP: () => browser.windows && !browser.electron,
         isOthers: () => objectEntries(OS).filter(([key, val]) => key !== 'isOthers').every(([key, val]) => !val()),
     };
     const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}]/gu;
@@ -600,8 +603,8 @@
         refreshEventListener({ 'video-osd-show': onVideoOsdShow });
         refreshEventListener({ 'video-osd-hide': onVideoOsdHide });
         console.log('Listener初始化完成');
-        if (OS.isAndroidEmbyNoisyX()) {
-            console.log('检测为安卓小秘版,首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
+        if (OS.isAndroidEmbyNoisyX() || OS.isEmbyUWP()) {
+            console.log('检测为特定平台版(安卓小秘版或UWP版),首次播放未触发 playbackstart 事件,手动初始化弹幕环境');
             loadDanmaku(LOAD_TYPE.INIT);
         }
     }
@@ -808,8 +811,13 @@
             bangumiMe = await fetchBangumiApiGetMe(token);
         }
         let msg = '';
-        const bangumiUserColl = await fetchJson(bangumiApi.getUserCollection(bangumiMe.username, subjectId), { token });
-        if (bangumiUserColl.type === 2) { // 看过状态
+        let bangumiUserColl = null;
+        try {
+            bangumiUserColl = await fetchJson(bangumiApi.getUserCollection(bangumiMe.username, subjectId), { token });
+        } catch (error) {
+            console.warn('Bangumi 条目未收藏');
+        }
+        if (bangumiUserColl && bangumiUserColl.type === 2) { // 看过状态
             msg = 'Bangumi 条目已为看过状态,跳过更新';
             console.log(msg, bangumiUserColl);
             throw new Error(msg);
@@ -1593,7 +1601,8 @@
             );
         }
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
-        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        // const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        const fontStyle = lsGetItem(lsKeys.fontStyle.id);
         const fontFamily = lsGetItem(lsKeys.fontFamily.id);
         // 弹幕透明度
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
@@ -1794,7 +1803,7 @@
                             <div style="${styles.embySlider}">
                                 <label class="${classes.embyLabel}" style="width: 5em;">${lsKeys.fontStyle.name}: </label>
                                 <div id="${eleIds.danmakuFontStyleDiv}" style="width: 15.5em; text-align: center;"></div>
-                                <label style="${styles.embySliderLabel}">正常</label>
+                                <label style="${styles.embySliderLabel}">normal</label>
                             </div>
                             <div id="${eleIds.fontFamilyCtrl}" style="margin: 0.6em 0;"></div>
                             <div style="${styles.embySlider}">
@@ -1910,8 +1919,10 @@
         );
         getById(eleIds.danmakuFontStyleDiv).append(
             embySlider({ lsKey: lsKeys.fontStyle }
-            , (val, opts) => onSliderChange(styles.fontStyles[val].name, opts)
-            , (val, opts) => onSliderChangeLabel(styles.fontStyles[val].name, opts))
+            , (val, opts) => onSliderChange(styles.fontStyles[val].id, opts)
+            , (val, opts) => onSliderChangeLabel(styles.fontStyles[val].id, opts))
+            // , (val, opts) => onSliderChange(styles.fontStyles[val].name, opts)
+            // , (val, opts) => onSliderChangeLabel(styles.fontStyles[val].name, opts))
         );
         buildFontFamilySetting();
     }
@@ -1926,20 +1937,6 @@
             { family: 'KaiTi', fullName: '楷体' },
             { family: 'Microsoft YaHei', fullName: '微软雅黑' },
         ];
-        if ('queryLocalFonts' in window) {
-            queryLocalFonts().then(fonts => {
-                availableFonts = [...availableFonts, ...fonts].reduce((acc, font) => {
-                    if (!acc.some(f => f.family === font.family)) acc.push(font);
-                    return acc;
-                }, []);
-                const selectedIndex = availableFonts.findIndex(f => f.family === fontFamilyVal);
-                resetFontFamilyDiv(selectedIndex, availableFonts);
-            }).catch(err => {
-                console.error(err);
-            });
-        } else {
-            console.info('queryLocalFonts 高级查询 API 不可用,使用预定字体列表');
-        }
         const selectedIndex = availableFonts.findIndex(f => f.family === fontFamilyVal);
         resetFontFamilyDiv(selectedIndex, availableFonts);
         buildFontFamilyCtrl();
@@ -1987,6 +1984,21 @@
                         onSliderChangeLabel(labelVal, { labelId: eleIds.fontFamilyLabel });
                         loadDanmaku(LOAD_TYPE.RELOAD);
                     }
+                }, (e) => {
+                    if ('queryLocalFonts' in window && opts.length <= 6) {
+                        queryLocalFonts().then(fonts => {
+                            opts = [...opts, ...fonts].reduce((acc, font) => {
+                                if (!acc.some(f => f.family === font.family)) acc.push(font);
+                                return acc;
+                            }, []);
+                            const fontFamilyVal = lsGetItem(lsKeys.fontFamily.id);
+                            const selectedIndex = opts.findIndex(f => f.family === fontFamilyVal);
+                            resetFontFamilyDiv(selectedIndex, opts);
+                        }).catch(err => {
+                            console.error(err);
+                        });
+                        console.info('queryLocalFonts 高级查询 API 可用,已补充字体列表');
+                    }
                 })
         );
         fontFamilyDiv.append(
@@ -2032,7 +2044,8 @@
     function changeFontStylePreview() {
         const fontStylePreview = getById(eleIds.fontStylePreview);
         const fontWeight = lsGetItem(lsKeys.fontWeight.id);
-        const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        // const fontStyle = styles.fontStyles[lsGetItem(lsKeys.fontStyle.id)].id;
+        const fontStyle = lsGetItem(lsKeys.fontStyle.id);
         const fontFamily = lsGetItem(lsKeys.fontFamily.id);
         const fontOpacity = Math.round(lsGetItem(lsKeys.fontOpacity.id) * 255).toString(16).padStart(2, '0');
         const baseColor = Number(styles.colors.info).toString(16).padStart(6, '0');
@@ -3418,7 +3431,7 @@
         return tabs;
     }
 
-    function embySelect(props, selectedIndexOrValue, options, optionValueKey, optionTitleKey, onChange) {
+    function embySelect(props, selectedIndexOrValue, options, optionValueKey, optionTitleKey, onChange, onFocus) {
         const defaultProps = { class: 'emby-select' };
         props = { ...defaultProps, ...props };
         if (!Number.isInteger(selectedIndexOrValue)) {
@@ -3449,6 +3462,9 @@
             selectElement.addEventListener('change', e => {
                 onChange(e.target.value, e.target.selectedIndex, options[e.target.selectedIndex]);
             });
+        }
+        if (typeof onFocus === 'function') {
+            selectElement.addEventListener('focus', onFocus);
         }
         // return selectElement;
         // !!! important, only emby-select must have selectLabel class wrapper
@@ -3998,6 +4014,9 @@
             initCss();
         }
         window.ede.itemId = e.detail.params.id ? e.detail.params.id : '';
+        require(['browser'], (b) => {
+            browser = b;
+        });
     }
 
     // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
