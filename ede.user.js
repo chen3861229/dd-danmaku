@@ -3,7 +3,7 @@
 // @description  Emby弹幕插件 - Emby风格
 // @namespace    https://github.com/chen3861229/dd-danmaku
 // @author       chen3861229
-// @version      1.46
+// @version      1.47
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/RyoLee/emby-danmaku/master/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -23,17 +23,18 @@
     // note02: url 禁止使用相对路径,非 web 环境的根路径为文件路径,非 http
     // ------ 程序内部使用,请勿更改 start ------
     const openSourceLicense = {
-        self: { version: '1.46', name: 'Emby Danmaku Extension(Forked from original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
+        self: { version: '1.47', name: 'Emby Danmaku Extension(Forked from original:1.11)', license: 'MIT License', url: 'https://github.com/chen3861229/dd-danmaku' },
         original: { version: '1.11', name: 'Emby Danmaku Extension', license: 'MIT License', url: 'https://github.com/RyoLee/emby-danmaku' },
         jellyfinFork: { version: '1.52', name: 'Jellyfin Danmaku Extension', license: 'MIT License', url: 'https://github.com/Izumiko/jellyfin-danmaku' },
         danmaku: { version: '2.0.8', name: 'Danmaku', license: 'MIT License', url: 'https://github.com/weizhenye/Danmaku' },
         dandanplayApi: { version: 'v2', name: '弹弹 play API', license: 'MIT License', url: 'https://github.com/kaedei/dandanplay-libraryindex' },
+        dandanplayDoc: { version: 'PC', name: '赞助弹弹 play 官方', license: 'None', url: 'https://doc.dandanplay.com/other/donate.html' },
         bangumiApi: { version: '2025-02-5', name: 'Bangumi API', license: 'None', url: 'https://github.com/bangumi/api' },
         embyPluginDanmu: { version: '1.0.2', name: 'EmbyPluginDanmu', license: 'None', url: 'https://github.com/fengymi/emby-plugin-danmu' },
     };
     const dandanplayApi = {
         prefix: corsProxy + 'https://api.dandanplay.net/api/v2',
-        getSearchEpisodes: (anime, episode) => `${dandanplayApi.prefix}/search/episodes?anime=${anime}${episode ? `&episode=${episode}` : ''}`,
+        getSearchEpisodes: (anime, episode, tmdbId) => `${dandanplayApi.prefix}/search/episodes?anime=${anime}${episode ? `&episode=${episode}` : ''}${tmdbId ? `&tmdbId=${tmdbId}` : ''}`,
         getComment: (episodeId, chConvert) => `${dandanplayApi.prefix}/comment/${episodeId}?withRelated=true&chConvert=${chConvert}`,
         getExtcomment: (url) => `${dandanplayApi.prefix}/extcomment?url=${encodeURI(url)}`,
         getBangumi: (animeId) => `${dandanplayApi.prefix}/bangumi/${animeId}`,
@@ -456,7 +457,6 @@
         }
         return [];
     }
-    let browser = null;
     const OS = {
         isAndroid: () => /android/i.test(navigator.userAgent),
         isIOS: () => /iPad|iPhone|iPod/i.test(navigator.userAgent),
@@ -467,8 +467,8 @@
         isUbuntu: () => /Ubuntu/i.test(navigator.userAgent),
         isAndroidEmbyNoisyX: () => OS.isAndroid() && ApiClient.appVersion().includes('-'),
         isEmbyNoisyX: () => ApiClient.appVersion().includes('-'),
-        isEmbyTheater: () => browser.windows && browser.electron,
-        isEmbyUWP: () => browser.windows && !browser.electron,
+        isEmbyTheater: () => ApiClient.appName() === 'Emby Theater',
+        isEmbyUWP: () => ApiClient.appName() === 'Emby Windows',
         isOthers: () => objectEntries(OS).filter(([key, val]) => key !== 'isOthers').every(([key, val]) => !val()),
     };
     const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}]/gu;
@@ -617,7 +617,9 @@
     function onPlaybackStop(e, state) {
         console.log(e.type);
         onPlaybackStopPct(e, state);
-        removeHeaderClock();
+        if (lsGetItem(lsKeys.osdHeaderClockEnable.id)) {
+            removeHeaderClock();
+        }
         danmakuAutoFilterCancel();
     }
 
@@ -627,14 +629,14 @@
             buildProgressBarChart(20);
         }
         if (lsGetItem(lsKeys.osdHeaderClockEnable.id)) {
-          addHeaderClock();
+            addHeaderClock();
         }
     }
 
     function onVideoOsdHide(e) {
         console.log(e.type, e);
         if (lsGetItem(lsKeys.osdHeaderClockEnable.id)) {
-          removeHeaderClock();
+            removeHeaderClock();
         }
     }
 
@@ -691,8 +693,8 @@
         return await ApiClient.getItem(ApiClient.getCurrentUserId(), id);
     }
 
-    async function fetchSearchEpisodes(anime, episode) {
-        if (!anime) { throw new Error('anime is required'); }
+    async function fetchSearchEpisodes(anime, episode, tmdbId) {
+        if (!anime || !tmdbId) { throw new Error('anime or tmdbId is required'); }
         const url = dandanplayApi.getSearchEpisodes(anime, episode);
         const animaInfo = await fetchJson(url)
             .catch((error) => {
@@ -707,11 +709,11 @@
         const url = dandanplayApi.getComment(episodeId, window.ede.chConvert);
         return fetchJson(url)
             .then((data) => {
-                console.log('弹幕获取成功: ' + data.comments.length);
+                console.log('[获取]弹幕成功: ' + data.comments.length);
                 return data.comments;
             })
             .catch((error) => {
-                console.log('弹幕获取失败:', error);
+                console.log('[获取]弹幕失败:', error);
                 return null;
             });
     }
@@ -969,6 +971,40 @@
     }
 
     async function autoFailback(animeName, episodeIndex, seriesOrMovieId) {
+        let rvt = await movieAutoFailback(animeName, episodeIndex);
+        if (rvt) { return rvt; }
+
+        const seriesOrMovieInfo = await ApiClient.getItem(ApiClient.getCurrentUserId(), seriesOrMovieId);
+        
+        
+        const animeOriginalTitle = seriesOrMovieInfo.OriginalTitle;
+        rvt = await oriTitleAutoFailback(animeName, episodeIndex, animeOriginalTitle);
+        if (rvt) { return rvt; }
+    }
+
+    async function tmdbAutoFailback(animeName, episodeIndex, tmdbId) {
+        if (!tmdbId) { return null; }
+        console.log(`标题名: ${animeName},自动匹配未查询到结果,将使用元信息中的 tmdbId,重试一次`);
+        animaInfo = await fetchSearchEpisodes(animeOriginalTitle, episodeIndex);
+        if (animaInfo.animes.length < 1) { return null; }
+        console.log(`使用原标题名: ${animeOriginalTitle},自动匹配成功`);
+        return { animeName, animaInfo, animeOriginalTitle, };
+    }
+
+    async function oriTitleAutoFailback(animeName, episodeIndex, animeOriginalTitle) {
+        // from: https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L886
+        // const seriesOrMovieInfo = await ApiClient.getItem(ApiClient.getCurrentUserId(), seriesOrMovieId);
+        // if (!seriesOrMovieInfo.OriginalTitle) { return null; }
+        if (!animeOriginalTitle) { return null; }
+        console.log(`标题名: ${animeName},自动匹配未查询到结果,将使用原标题名,重试一次`);
+        // const animeOriginalTitle = seriesOrMovieInfo.OriginalTitle;
+        animaInfo = await fetchSearchEpisodes(animeOriginalTitle, episodeIndex);
+        if (animaInfo.animes.length < 1) { return null; }
+        console.log(`使用原标题名: ${animeOriginalTitle},自动匹配成功`);
+        return { animeName, animaInfo, animeOriginalTitle, };
+    }
+
+    async function movieAutoFailback(animeName, episodeIndex) {
         console.log(`自动匹配未查询到结果,可能为非番剧,将移除章节过滤,重试一次`);
         let animaInfo = await fetchSearchEpisodes(animeName);
         if (animaInfo.animes.length > 0) {
@@ -982,15 +1018,6 @@
             animaInfo.animes[0].episodes = [episodeInfo];
             return { animeName, animaInfo, };
         }
-        // from: https://github.com/Izumiko/jellyfin-danmaku/blob/jellyfin/ede.js#L886
-        const seriesOrMovieInfo = await ApiClient.getItem(ApiClient.getCurrentUserId(), seriesOrMovieId);
-        if (!seriesOrMovieInfo.OriginalTitle) { return null; }
-        console.log(`标题名: ${animeName},自动匹配未查询到结果,将使用原标题名,重试一次`);
-        const animeOriginalTitle = seriesOrMovieInfo.OriginalTitle;
-        animaInfo = await fetchSearchEpisodes(animeOriginalTitle, episodeIndex);
-        if (animaInfo.animes.length < 1) { return null; }
-        console.log(`使用原标题名: ${animeOriginalTitle},自动匹配成功`);
-        return { animeName, animeOriginalTitle, animaInfo, };
     }
 
     async function searchEpisodes(itemInfoMap) {
@@ -1012,7 +1039,6 @@
         if (animaInfo && animaInfo.animes.length > 0) {
             return { animeOriginalTitle, animaInfo, };
         }
-        // 去除集数匹配 与 尝试使用原标题名匹配
         const res = await autoFailback(animeName, episode, seriesOrMovieId);
         if (res) {
             return res;
@@ -1121,7 +1147,7 @@
         const commentsParsed = danmakuParser(comments);
         window.ede.commentsParsed = commentsParsed;
         let _comments = danmakuFilter(commentsParsed);
-        console.log('弹幕加载成功: ' + _comments.length);
+        console.log('[加载]弹幕成功: ' + _comments.length);
 
         const _media = document.querySelector(mediaQueryStr);
         if (!_media) {
@@ -1867,7 +1893,9 @@
         );
         // 弹幕时间轴偏移秒数
         const btnContainer = getById(eleIds.timelineOffsetDiv, container);
-        const timelineOffsetOpts = { lsKey: lsKeys.timelineOffset };
+        const nextEle = btnContainer.nextElementSibling;
+        const labelEle = nextEle.children.length > 0 ? nextEle.children[0] : nextEle;
+        const timelineOffsetOpts = { lsKey: lsKeys.timelineOffset, labelEle };
         onSliderChangeLabel(lsGetItem(lsKeys.timelineOffset.id), timelineOffsetOpts);
         timeOffsetBtns.forEach(btn => {
             btnContainer.append(embyButton(btn, (e) => {
@@ -2107,6 +2135,9 @@
                         </div>
                         <div class="${classes.embyFieldDesc}">
                             仅[ 爱奇艺视频, ]需要注意网址后不能带 ? 的参数,其余网址带不带都可以
+                        </div>
+                        <div class="${classes.embyFieldDesc}">
+                            详细网址示例: 弹弹 play PC 官方客户端 -> 添加更多弹幕 -> 查看支持解析的网址示例
                         </div>
                     </div>
                 </div>
@@ -2583,7 +2614,12 @@
         ));
         getById(eleIds.osdLineChartTimeDiv).append(
             embySlider({ lsKey: lsKeys.osdLineChartTime, needReload: false }
-                , (val, opts) => { onSliderChange(val, opts);buildProgressBarChart(20); }, onSliderChangeLabel)
+                , (val, opts) => {
+                    onSliderChange(val, opts);
+                    if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
+                        buildProgressBarChart(20);
+                    }
+                }, onSliderChangeLabel)
         );
     }
 
@@ -2909,6 +2945,8 @@
             require(['browser'], (browser) => {
                 console.log('Emby 内部自身判断: ', browser);
             });
+            console.log('Emby appName: ', ApiClient.appName());
+            console.log('Emby appVersion: ', ApiClient.appVersion());
         }));
         debugWrapper.append(embyButton({ label: '打印弹幕引擎信息', style: 'margin: 0.3em;' }, () => {
             const msg = `弹幕引擎是否存在: ${!!window.Danmaku}, 弹幕引擎是否实例化成功: ${!!window.ede.danmaku}`;
@@ -3043,8 +3081,8 @@
     }
 
     function doDanmakuSwitch() {
-        console.log('切换' + lsKeys.switch.name);
         const flag = !lsGetItem(lsKeys.switch.id);
+        console.log(`切换${lsKeys.switch.name}: ${flag}`);
         if (window.ede.danmaku) {
             flag ? window.ede.danmaku.show() : window.ede.danmaku.hide();
         }
@@ -3234,12 +3272,12 @@
 
     function onSliderChange(val, opts) {
         onSliderChangeLabel(opts.label ? opts.label : val, opts);
-        if (opts.key && lsCheckSet(opts.key, val)) {
+        if (opts.lsKey.id && lsCheckSet(opts.lsKey.id, val)) {
             let needReload = opts.needReload === undefined ? true : opts.needReload;
             if (opts.isManual) {
                 needReload = false;
             }
-            console.log(`${opts.key} changed to ${val}, needReload: ${needReload}`);
+            console.log(`${opts.lsKey.id} changed to ${val}, needReload: ${needReload}`);
             if (needReload) {
                 changeFontStylePreview();
                 loadDanmaku(LOAD_TYPE.RELOAD);
@@ -3300,6 +3338,7 @@
     }
 
     function getById(childId, parentNode = document) {
+        if (!parentNode) { return null; }
         return parentNode.querySelector(`#${childId}`);
     }
 
@@ -3309,6 +3348,7 @@
      * @returns {HTMLElement | null} - 返回找到的单个元素或 null
      */
     function getByClass(className, parentNode = document) {
+        if (!parentNode) { return null; }
         return parentNode.querySelector(`.${className}`);
     }
 
@@ -3552,7 +3592,7 @@
         if (opts.id) { slider.setAttribute('id', opts.id); }
         objectEntries(options).forEach(([key, value]) => {
             if (key === 'lsKey') {
-                opts.key = value.id;
+                // opts.key = value.id;
                 const optsKeys = Object.keys(opts);
                 if (!optsKeys.includes('value')) { options.value = lsGetItem(value.id); }
                 if (!optsKeys.includes('min')) { slider.setAttribute('min', value.min); }
@@ -3586,18 +3626,16 @@
                 slider.dispatchEvent(e);
             });
         }
-        require(['browser'], (browser) => {
-            if (browser.electron && browser.windows) { // Emby Theater
-                // 以下兼容旧版本emby,控制器操作锁定滑块焦点
-                slider.addEventListener('keydown', e => {
-                    const orient = slider.getAttribute('orient') || 'horizontal';
-                    if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
-                        (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
-                        e.stopPropagation();
-                    }
-                });
-            }
-        });
+        if (OS.isEmbyTheater()) {
+            // 以下兼容旧版本emby,控制器操作锁定滑块焦点
+            slider.addEventListener('keydown', e => {
+                const orient = slider.getAttribute('orient') || 'horizontal';
+                if ((orient === 'horizontal' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
+                    (orient === 'vertical' && (e.key === 'ArrowUp' || e.key === 'ArrowDown'))) {
+                    e.stopPropagation();
+                }
+            });
+        }
         return slider;
     }
 
@@ -4017,9 +4055,6 @@
             initCss();
         }
         window.ede.itemId = e.detail.params.id ? e.detail.params.id : '';
-        require(['browser'], (b) => {
-            browser = b;
-        });
     }
 
     // emby/jellyfin CustomEvent. see: https://github.com/MediaBrowser/emby-web-defaultskin/blob/822273018b82a4c63c2df7618020fb837656868d/nowplaying/videoosd.js#L698
