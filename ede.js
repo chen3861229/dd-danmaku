@@ -694,7 +694,9 @@
     }
 
     async function fetchSearchEpisodes(anime, episode, tmdbId) {
-        if (!anime || !tmdbId) { throw new Error('anime or tmdbId is required'); }
+        if (!(anime || tmdbId)) {
+            throw new Error('At least one of "anime" or "tmdbId" must be provided');
+        }
         const url = dandanplayApi.getSearchEpisodes(anime, episode);
         const animaInfo = await fetchJson(url)
             .catch((error) => {
