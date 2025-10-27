@@ -626,12 +626,16 @@
         if (lsGetItem(lsKeys.osdLineChartEnable.id)) {
             buildProgressBarChart(20);
         }
-        addHeaderClock();
+        if (lsGetItem(lsKeys.osdHeaderClockEnable.id)) {
+          addHeaderClock();
+        }
     }
 
     function onVideoOsdHide(e) {
         console.log(e.type, e);
-        removeHeaderClock();
+        if (lsGetItem(lsKeys.osdHeaderClockEnable.id)) {
+          removeHeaderClock();
+        }
     }
 
     function initUI() {
