@@ -129,3 +129,8 @@ windows 下载 JDK 可使用[Apktool](https://apktool.org) 进行解包和打包
 4. NewUI 以来的一些更改和注意事项, [CHANGLOG](docs/CHANGLOG.md) 或 [PR#60](https://github.com/9channel/dd-danmaku/pull/60)
 
 **首次播放时请检查当前弹幕信息是否正确匹配,若匹配错误请尝试手动匹配**
+
+## 参考项目(欢迎顺手点亮一颗⭐️)
+
+- [9channel/dd-danmaku](https://github.com/9channel/dd-danmaku)
+- [l429609201/dd-danmaku](https://github.com/l429609201/dd-danmaku)
