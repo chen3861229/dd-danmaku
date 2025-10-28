@@ -35,19 +35,23 @@ async function handleRequest(request) {
     console.log('X-Signature: ' + signature);
     console.log('X-Timestamp: ' + timestamp);
     console.log('ApiPath: ' + apiPath);
-    
+
+    // 构建请求头，确保所有原始头部都被正确传递
+    const headers = {};
+    for (const [key, value] of request.headers.entries()) {
+        headers[key] = value;
+    }
+    headers["X-AppId"] = appId;
+    headers["X-Signature"] = signature;
+    headers["X-Timestamp"] = timestamp.toString();
+    headers["X-Auth"] = "1";
+
     let response = await fetch(url, {
-        headers: {
-            ...request.headers,
-            "X-AppId": appId,
-            "X-Signature": signature,
-            "X-Timestamp": timestamp,
-            "X-Auth": "1",
-        },
+        headers: headers,
         body: request.body,
         method: request.method,
     });
-    response = new Response(await response.body, response);
+    response = new Response(response.body, response);
     response.headers.set('Access-Control-Allow-Origin', '*');
     return response;
 }
