@@ -3,15 +3,17 @@
 #### 1.47
 fix: 修复播放页高能进度条和时钟永久开问题
 fix: 修复轴偏秒设置失效
-feat: 提取标题的时候，额外提取季度集数作为入参进行检索，提高准确度
-feat: 增加智能匹配功能
-feat: 增加自定义弹幕API
-feat: 为官方API添加match接口支持
-feat: 多季度播放的时候检索内容优化
-feat: 将官方API和自定义API缓存区分化
-feat: 添加播放时弹幕推理匹配的功能（基于dandanplay epid连续的特性）
-feat: 合并搜索结果，同时展示官方API和自定义API搜索结果
-feat: 修复worker端无法传递match请求头的问题
+feat: 添加两个调试开关，顶底弹幕滚动，在任意处测试弹幕
+fix: 优化和修正合并新特性
+feat: 提取标题的时候，额外提取季度集数作为入参进行检索，提高准确度. by @l429609201 in #85
+feat: 增加智能匹配功能. by @l429609201 in #85
+feat: 增加自定义弹幕API. by @l429609201 in #85
+feat: 为官方API添加match接口支持. by @l429609201 in #85
+feat: 多季度播放的时候检索内容优化. by @l429609201 in #85
+feat: 将官方API和自定义API缓存区分化. by @l429609201 in #85
+feat: 添加播放时弹幕推理匹配的功能（基于dandanplay epid连续的特性）. by @l429609201 in #85
+feat: 合并搜索结果，同时展示官方API和自定义API搜索结果. by @l429609201 in #85
+feat: 修复worker端无法传递match请求头的问题. by @l429609201 in #85
 
 #### 1.46
 fix: 修复 Windows UWP 版的首次播放弹幕不加载问题
