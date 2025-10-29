@@ -195,6 +195,10 @@
         { id: '1', name: '分', msRate: 1000 * 60 },
         { id: '2', name: '时', msRate: 1000 * 60 * 60 },
     ];
+    const apiPriorityOpts = [
+        { id: 'official', name: '官方API优先' },
+        { id: 'custom', name: '自定义API优先' },
+    ];
     let timeoutCallbackId;
     const timeoutCallbackClear = () => timeoutCallbackId && clearTimeout(timeoutCallbackId);
     const timeoutCallbackTypeOpts = [
@@ -252,12 +256,14 @@
         debugReverseDanmu: { id: 'danmakuDebugReverseDanmu', defaultValue: false, name: '反转弹幕方向' },
         debugRandomDanmuColor: { id: 'danmakuDebugRandomDanmuColor', defaultValue: false, name: '随机弹幕颜色' },
         debugForceDanmuWhite: { id: 'danmakuDebugForceDanmuWhite', defaultValue: false, name: '强制弹幕白色' },
+        debugTopBottomToScroll: { id: 'danmakuDebugTopBottomToScroll', defaultValue: false, name: '顶底弹幕滚动' },
         debugGenerateLarge: { id: 'danmakuDebugGenerateLarge', defaultValue: false, name: '测试大量弹幕' },
         debugDialogHyalinize: { id: 'danmakuDebugDialogHyalinize', defaultValue: false, name: '透明弹窗背景' },
         debugDialogWindow: { id: 'danmakuDebugDialogWindow', defaultValue: false, name: '弹窗窗口化' },
         debugDialogRight: { id: 'danmakuDebugDialogRight', defaultValue: false, name: '弹窗靠右布局' }, // Emby Android 上暂时存在 bug
         debugTabIframeEnable: { id: 'danmakuDebugTabIframeEnable', defaultValue: false, name: '打开内嵌网页' },
         debugH5VideoAdapterEnable: { id: 'danmakuDebugH5VideoAdapterEnable', defaultValue: false, name: '查看视频适配器情况' },
+        debugDanmuAnywhereEnable: { id: 'danmakuDebugDanmuAnywhereEnable', defaultValue: false, name: '在任意处测试弹幕' },
         quickDebugOn: { id: 'danmakuQuickDebugOn', defaultValue: false, name: '快速调试' },
         customeCorsProxyUrl: { id: 'danmakuCustomeCorsProxyUrl', defaultValue: corsProxy, name: '跨域代理前缀' },
         customeDanmakuUrl: { id: 'danmakuCustomeDanmakuUrl', defaultValue: requireDanmakuPath, name: '弹幕引擎依赖' },
@@ -275,6 +281,8 @@
         animeEpisodePrefix: '_episode_id_rel_',
         bangumiEpInfoPrefix: '_bangumi_episode_id_rel_',
         bangumiMe: '_bangumi_me',
+        // customApiPrefix
+        apiPrefix: '_api_',
     };
     const eleIds = {
         danmakuSwitchBtn: 'danmakuSwitchBtn',
@@ -298,7 +306,10 @@
         searchImgDiv: 'searchImgDiv',
         searchImg: 'searchImg',
         searchApiSource: 'searchApiSource',
-        apiSelectDiv: 'apiSelectDiv',
+        apiCheckboxListDiv: 'apiCheckboxListDiv',
+        apiPriorityDiv: 'apiPriorityDiv',
+        customApiPrefixInputDiv: 'customApiPrefixInputDiv',
+        clearLocalMatchCacheBtn: 'clearLocalMatchCacheBtn',
         extCommentSearchDiv: 'extCommentSearchDiv',
         extUrlsDiv: 'extUrlsDiv',
         currentMatchedDiv: 'currentMatchedDiv',
@@ -965,18 +976,23 @@
         window.ede.itemId = item.Id;
         let _id;
         let animeName;
+        let episodeName;
         let animeId = -1;
         let episode;
+        const seriesName = item.SeriesName;
+        const seasonNumber = item.ParentIndexNumber;
+        const episodeNumber = item.IndexNumber;
         if (item.Type == 'Episode') {
             _id = item.SeasonId;
-            const seriesName = item.SeriesName;
-            const seasonNumber = item.ParentIndexNumber;
-            const episodeNumber = item.IndexNumber;
             episode = episodeNumber;
             if (seasonNumber !== undefined && episodeNumber !== undefined) {
-                animeName = `${seriesName} S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`;
+                episodeName = `${seriesName} S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`;
             } else {
-                animeName = seriesName + (seasonNumber && seasonNumber !== 1 ? ` ${seasonNumber}` : '');
+                episodeName = seriesName + (seasonNumber && seasonNumber !== 1 ? ` ${seasonNumber}` : '');
+            }
+            animeName = seriesName;
+            if (seasonNumber != 1) {
+                animeName += ' ' + seasonNumber;
             }
         } else {
             _id = item.Id;
@@ -1044,6 +1060,10 @@
             streamUrl: streamUrl,
             size: mediaSource?.Size,
             duration: (mediaSource?.RunTimeTicks || 0) / 10000000, // Ticks to seconds
+            episodeName: episodeName,
+            seriesName,
+            seasonNumber,
+            episodeNumber,
         };
     }
 
@@ -1340,7 +1360,11 @@
     // 提取关键词
     function extractKeywords(title) {
         // 移除常见的无意义词汇
-        const stopWords = ['第', '季', '部', '篇', '章', '话', '集', '期', 'season', 'episode', 'ep', 'ova', 'tv', 'movie', 'special', 'the', 'of', 'and', 'in', 'to', 'a', 'an'];
+        const stopWords = [
+            '第', '季', '部', '篇', '章', '话', '集', '期', 
+            'season', 'episode', 'ep', 'ova', 'tv', 'movie', 
+            'special', 'the', 'of', 'and', 'in', 'to', 'a', 'an'
+        ];
 
         return title
             .toLowerCase()
@@ -1479,8 +1503,8 @@
             console.log(`[Hash] 哈希值详情 - 长度: ${hash.length}, 值: ${hash}`);
             return hash;
         } catch (error) {
-            console.error('[Hash] 文件哈希计算过程中发生错误:', error);
-            console.error('[Hash] 错误详情:', {
+            console.warn('[Hash] 文件哈希计算过程中发生错误:', error);
+            console.warn('[Hash] 错误详情:', {
                 message: error.message,
                 streamUrl: streamUrl,
                 fileSize: fileSize,
@@ -1513,8 +1537,8 @@
     }
 
     async function searchEpisodes(itemInfoMap) {
-        const { _season_key, animeName, episode, seriesOrMovieId, streamUrl, size, duration } = itemInfoMap;
-        console.log(`[自动匹配] 标题名: ${animeName}` + (episode ? `,章节过滤: ${episode}` : ''));
+        const { _season_key, animeName, episodeName, episode, seriesOrMovieId, streamUrl, size, duration } = itemInfoMap;
+        console.log(`[自动匹配] 标题名: ${episodeName}` + (episode ? `,章节过滤: ${episode}` : ''));
         console.log(`[Debug] searchEpisodes调用 - streamUrl: ${streamUrl ? '已获取' : '未获取'}, size: ${size}, duration: ${duration}`);
 
         // 读取用户定义的API优先级
@@ -1524,13 +1548,77 @@
             custom: { name: '自定义API', prefix: lsGetItem(lsKeys.customApiPrefix.id), enabled: lsGetItem(lsKeys.useCustomApi.id) }
         };
 
-        let animeOriginalTitle = '';
-        let animaInfo;
+        // 尝试哈希匹配(含 /match 调用)
+        const hashMatchResult = await tryMatchByHash(episodeName, streamUrl, size, duration, apiConfigs, apiPriority);
+        if (hashMatchResult) {
+            return hashMatchResult;
+        }
 
-        // 准备 /match 接口的请求体
+        for (const apiKey of apiPriority) {
+            const config = apiConfigs[apiKey];
+            if (!config || !config.enabled || (apiKey === 'custom' && !config.prefix)) {
+                continue;
+            }
+
+            // 尝试 /search/episodes 接口 (带集数)
+            let searchTitle = episodeName;
+            let searchEpisode = episode;
+
+            if (apiKey === 'official') {
+                const parsed = parseAnimeName(episodeName);
+                if (parsed.season !== null) {
+                    searchTitle = parsed.season === 1 ? parsed.title : `${parsed.title} 第${parsed.season}季`;
+                    searchEpisode = parsed.episode;
+                    console.log(`[自动匹配][官方API优化] 格式化搜索: 标题='${searchTitle}', 集数=${searchEpisode}`);
+                }
+            }
+            console.log(`[自动匹配][${config.name}] 尝试 /search/episodes 接口, 标题名: ${searchTitle}, 集数: ${searchEpisode}`);
+            let searchAnimaInfo = await fetchSearchEpisodes(searchTitle, searchEpisode, config.prefix);
+            if (searchAnimaInfo && searchAnimaInfo.animes.length > 0) {
+                console.log(`[${config.name}] 带集数搜索成功`);
+                return { animaInfo: searchAnimaInfo, apiPrefix: config.prefix };
+            }
+
+            // 尝试 /search/episodes 接口 (不带集数)
+            console.log(`[${config.name}] 带集数搜索失败，尝试不带集数...`);
+            searchAnimaInfo = await fetchSearchEpisodes(episodeName, null, config.prefix);
+            if (searchAnimaInfo && searchAnimaInfo.animes.length > 0) {
+                console.log(`[${config.name}] 不带集数搜索成功`);
+                return { animaInfo: searchAnimaInfo, apiPrefix: config.prefix };
+            }
+        }
+
+        // 使用缓存中的剧集标题与集偏移量进行匹配
+        let animaRes = await lsSeasonSearchEpisodes(_season_key, episode);
+        if (animaRes) {
+            const bgmEpisodeIndex = animaRes.newEpisode - 1;
+            if (animaRes.animaInfo && animaRes.animaInfo.animes.length > 0) {
+                return { animeOriginalTitle: '', animaInfo: animaRes.animaInfo, bgmEpisodeIndex };
+            }
+        }
+
+        // 默认匹配方式
+        const currentPriority = apiPriority === 'custom' && apiConfigs.custom.enabled && apiConfigs.custom.prefix?.trim()
+            ? 'custom'
+            : 'official';
+        const selectedApiConfig = (apiConfigs[currentPriority].enabled && apiConfigs[currentPriority].prefix?.trim())
+            ? apiConfigs[currentPriority]
+            : apiConfigs.custom;
+        const animaInfo = await fetchSearchEpisodes(animeName, episode, selectedApiConfig.prefix);
+        if (animaInfo && animaInfo.animes.length > 0) {
+            return { animeOriginalTitle: '', animaInfo };
+        }
+
+        const res = await autoFailback(animeName, episode, seriesOrMovieId);
+        if (res) {
+            return res;
+        }
+    }
+
+    async function tryMatchByHash(animeName, streamUrl, size, duration, apiConfigs, apiPriority) {
         const matchPayload = {
             fileName: animeName,
-            fileHash: null,
+            fileHash: 'a1b2c3d4e5f67890abcd1234ef567890', // 默认假哈希
             fileSize: size || 0,
             videoDuration: Math.floor(duration || 0),
             matchMode: "hashAndFileName"
@@ -1544,11 +1632,11 @@
                 console.log(`文件哈希计算完成: ${matchPayload.fileHash}`);
             } else {
                 console.warn('[Hash] 文件哈希计算失败，将使用假哈希值进行匹配。');
-                matchPayload.fileHash = 'a1b2c3d4e5f67890abcd1234ef567890';
+                // matchPayload.fileHash = 'a1b2c3d4e5f67890abcd1234ef567890';
             }
         } else {
             console.warn('未找到播放链接或文件大小，将使用假哈希值进行匹配。');
-            matchPayload.fileHash = 'a1b2c3d4e5f67890abcd1234ef567890';
+            // matchPayload.fileHash = 'a1b2c3d4e5f67890abcd1234ef567890';
         }
 
         // 尝试 /match 接口（按优先级）
@@ -1593,55 +1681,9 @@
                     };
                 }
             }
-
-            // 尝试 /search/episodes 接口 (带集数)
-            let searchTitle = animeName;
-            let searchEpisode = episode;
-
-            // 针对官方API的特殊处理逻辑
-            if (apiKey === 'official') {
-                const parsed = parseAnimeName(animeName);
-                if (parsed.season !== null) {
-                    // 第一季只使用原始标题，第二季及以上拼接 "第X季"
-                    searchTitle = parsed.season === 1 ? parsed.title : `${parsed.title} 第${parsed.season}季`;
-                    searchEpisode = parsed.episode; // 使用从文件名解析出的集数
-                    console.log(`[自动匹配][官方API优化] 格式化搜索: 标题='${searchTitle}', 集数=${searchEpisode}`);
-                }
-            }
-            console.log(`[自动匹配][${config.name}] 尝试 /search/episodes 接口, 标题名: ${searchTitle}, 集数: ${searchEpisode}`);
-            let searchAnimaInfo = await fetchSearchEpisodes(searchTitle, searchEpisode, config.prefix);
-            if (searchAnimaInfo && searchAnimaInfo.animes.length > 0) {
-                console.log(`[${config.name}] 带集数搜索成功`);
-                return { animaInfo: searchAnimaInfo, apiPrefix: config.prefix };
-            }
-
-            // 尝试 /search/episodes 接口 (不带集数)
-            console.log(`[${config.name}] 带集数搜索失败，尝试不带集数...`);
-            searchAnimaInfo = await fetchSearchEpisodes(animeName, null, config.prefix);
-            if (searchAnimaInfo && searchAnimaInfo.animes.length > 0) {
-                console.log(`[${config.name}] 不带集数搜索成功`);
-                return { animaInfo: searchAnimaInfo, apiPrefix: config.prefix };
-            }
         }
 
-        // 使用缓存中的剧集标题与集偏移量进行匹配
-        let animaRes = await lsSeasonSearchEpisodes(_season_key, episode);
-        if (animaRes) {
-            animaInfo = animaRes.animaInfo;
-            const bgmEpisodeIndex = animaRes.newEpisode - 1;
-            if (animaInfo && animaInfo.animes.length > 0) {
-                return { animeOriginalTitle, animaInfo, bgmEpisodeIndex, };
-            }
-        }
-        // 默认匹配方式
-        animaInfo = await fetchSearchEpisodes(animeName, episode);
-        if (animaInfo && animaInfo.animes.length > 0) {
-            return { animeOriginalTitle, animaInfo, };
-        }
-        const res = await autoFailback(animeName, episode, seriesOrMovieId);
-        if (res) {
-            return res;
-        }
+        return null;
     }
 
     async function getEpisodeInfo(is_auto = true) {
@@ -1702,7 +1744,7 @@
             if (apiKey === 'custom') return useCustomApi;
             return false;
         });
-        const unique_episode_key = `_api_${enabledApis.join('_')}_` + _episode_key;
+        const unique_episode_key = lsLocalKeys.apiPrefix + `${enabledApis.join('_')}_` + _episode_key;
         if (is_auto && window.localStorage.getItem(unique_episode_key)) {
             return JSON.parse(window.localStorage.getItem(unique_episode_key));
         }
@@ -1833,6 +1875,7 @@
             window.ede.danmaku.destroy();
             window.ede.danmaku = null;
         }
+        window.ede.commentsOriginal = comments;
         const commentsParsed = danmakuParser(comments);
         window.ede.commentsParsed = commentsParsed;
         let _comments = danmakuFilter(commentsParsed);
@@ -1890,7 +1933,9 @@
         // 自定义的 initH5VideoAdapter 下,解决暂停时暂停的弹幕再次加载会自动恢复问题
         if (_media.id) {
             require(['playbackManager'], (playbackManager) => {
-                if (playbackManager.getPlayerState().PlayState.IsPaused) {
+                if (playbackManager.getCurrentPlayer()
+                    && playbackManager.getPlayerState().PlayState.IsPaused
+                ) {
                     _media.dispatchEvent(new Event('pause'));
                 }
             });
@@ -2823,7 +2868,10 @@
                             </div>
                             <label class="${classes.embyLabel}">弹弹 play 附加的第三方 url: </label>
                         </div>
-                        <button is="emby-button" type="button" class="raised emby-button" id="btnClearLocalMatchCache">清除本地匹配缓存</button>
+                        <button is="emby-button" type="button"
+                            class="${classes.embyButtons.basic}" id="${eleIds.clearLocalMatchCacheBtn}">
+                            清除本地匹配缓存
+                        </button>
                     </div>
                     <div id="${eleIds.extUrlsDiv}"></div>
                 </div>
@@ -2849,11 +2897,19 @@
                 </div>
                 <div is="emby-collapse" title="API选择、自定义API配置">
                     <div class="${classes.collapseContentNav}">
-                        <div id="${eleIds.apiSelectDiv}" class="${classes.embyCheckboxList}" style="${styles.embyCheckboxList} align-items: center;">
+                        <div id="${eleIds.apiCheckboxListDiv}" class="${classes.embyCheckboxList}" style="${styles.embyCheckboxList} align-items: center;">
+                            <!-- API 复选框将在这里创建 -->
+                        </div>
+                        <label class="${classes.embyLabel}">${lsKeys.apiPriority.name}: </label>
+                        <div id="${eleIds.apiPriorityDiv}" style="margin: 1% 0;">
                             <!-- API 优先级列表将在这里创建 -->
                         </div>
-                        <div id="customApiContainer" style="margin-top: 1em;">
+                        <label class="${classes.embyLabel}">${lsKeys.customApiPrefix.name}: </label>
+                        <div id="${eleIds.customApiPrefixInputDiv}" style="display: flex;">
                             <!-- 自定义API地址输入框将在这里创建 -->
+                        </div>
+                        <div class="${classes.embyFieldDesc}">
+                            如需自定义弹幕API地址,请填写完整URL(如 https://api.example.com ),<br>留空则使用原生API
                         </div>
                     </div>
                 </div>
@@ -2864,11 +2920,12 @@
         buildExtCommentDiv();
         buildDanmuPluginDiv();
         bindManualMatchButtons();
+        buildCustomApiDiv();
     }
 
     function bindManualMatchButtons() {
         // 绑定清除本地匹配缓存按钮事件
-        const btnClearCache = getById('btnClearLocalMatchCache');
+        const btnClearCache = getById(eleIds.clearLocalMatchCacheBtn);
         if (btnClearCache) {
             btnClearCache.addEventListener('click', () => {
                 const prefixesToClear = [
@@ -2876,7 +2933,8 @@
                     lsLocalKeys.animeSeasonPrefix,
                     lsLocalKeys.animePrefix,
                     lsLocalKeys.bangumiEpInfoPrefix,
-                    lsLocalKeys.bangumiMe
+                    lsLocalKeys.bangumiMe,
+                    lsLocalKeys.apiPrefix,
                 ];
                 lsBatchRemove(prefixesToClear);
 
@@ -2894,150 +2952,13 @@
                     window.ede.searchDanmakuOpts.episodes = [];
                 }
 
-                embyToast({ text: '本地匹配缓存已清除，包括animeId、episodeId等所有匹配信息' });
+                embyToast({ text: '本地匹配缓存已清除,包括animeId、episodeId等所有匹配信息' });
                 loadDanmaku(LOAD_TYPE.REFRESH);
             });
         }
     }
 
     function buildSearchEpisodeEle() {
-        // 添加自定义API地址输入框
-        const customApiContainer = getById('customApiContainer');
-        const customApiDiv = document.createElement('div');
-        customApiDiv.className = 'emby-field';
-        const customApiLabel = document.createElement('label');
-        customApiLabel.className = 'emby-label';
-        customApiLabel.textContent = lsKeys.customApiPrefix.name + '：';
-        customApiDiv.append(customApiLabel);
-        const customApiInput = embyInput({
-            id: 'customApiPrefixInput',
-            type: 'search',
-            value: lsGetItem(lsKeys.customApiPrefix.id) || '',
-            style: 'width: 24em;'
-        }, (e) => {
-            if (e.key === 'Enter') {
-                const val = e.target.value.trim();
-                lsSetItem(lsKeys.customApiPrefix.id, val);
-                embyToast({ text: '自定义API地址已保存', secondaryText: val });
-            }
-        }, (e) => {
-            // 失焦自动保存
-            const val = e.target.value.trim();
-            lsSetItem(lsKeys.customApiPrefix.id, val);
-        });
-        customApiDiv.append(customApiInput);
-        const customApiDesc = document.createElement('div');
-        customApiDesc.className = 'emby-field-desc';
-        customApiDesc.innerHTML = '如需自定义弹幕API地址，请填写完整URL（如 https://api.example.com ），<br>留空则使用原生API';
-        customApiDiv.append(customApiDesc);
-        customApiContainer.append(customApiDiv);
-
-        // API选择和优先级设置
-        const apiSelectDiv = getById(eleIds.apiSelectDiv);
-        apiSelectDiv.innerHTML = '';
-        apiSelectDiv.style.display = 'block';
-
-        // 官方API启用开关
-        apiSelectDiv.append(embyCheckbox({ label: lsKeys.useOfficialApi.name }, lsGetItem(lsKeys.useOfficialApi.id), (checked) => {
-            lsSetItem(lsKeys.useOfficialApi.id, checked);
-        }));
-
-        // 自定义API启用开关
-        apiSelectDiv.append(embyCheckbox({ label: lsKeys.useCustomApi.name }, lsGetItem(lsKeys.useCustomApi.id), (checked) => {
-            lsSetItem(lsKeys.useCustomApi.id, checked);
-        }));
-
-        // API优先级开关
-        const priorityLabel = document.createElement('label');
-        priorityLabel.className = classes.embyLabel;
-        priorityLabel.textContent = 'API 优先级:';
-        priorityLabel.style.marginTop = '1em';
-        priorityLabel.style.display = 'block';
-        apiSelectDiv.append(priorityLabel);
-
-        const priorityContainer = document.createElement('div');
-        priorityContainer.style.display = 'flex';
-        priorityContainer.style.alignItems = 'center';
-        priorityContainer.style.marginTop = '0.5em';
-
-        const prioritySwitch = document.createElement('div');
-        prioritySwitch.className = 'emby-toggle-switch';
-        prioritySwitch.style.position = 'relative';
-        prioritySwitch.style.width = '200px';
-        prioritySwitch.style.height = '40px';
-        prioritySwitch.style.backgroundColor = '#333';
-        prioritySwitch.style.borderRadius = '20px';
-        prioritySwitch.style.cursor = 'pointer';
-        prioritySwitch.style.transition = 'all 0.3s ease';
-
-        const prioritySlider = document.createElement('div');
-        prioritySlider.style.position = 'absolute';
-        prioritySlider.style.top = '2px';
-        prioritySlider.style.width = '96px';
-        prioritySlider.style.height = '36px';
-        prioritySlider.style.backgroundColor = '#4a90e2';
-        prioritySlider.style.borderRadius = '18px';
-        prioritySlider.style.transition = 'all 0.3s ease';
-        prioritySlider.style.display = 'flex';
-        prioritySlider.style.alignItems = 'center';
-        prioritySlider.style.justifyContent = 'center';
-        prioritySlider.style.color = 'white';
-        prioritySlider.style.fontSize = '12px';
-        prioritySlider.style.fontWeight = 'bold';
-
-        const leftLabel = document.createElement('div');
-        leftLabel.style.position = 'absolute';
-        leftLabel.style.left = '10px';
-        leftLabel.style.top = '50%';
-        leftLabel.style.transform = 'translateY(-50%)';
-        leftLabel.style.fontSize = '12px';
-        leftLabel.style.color = '#999';
-        leftLabel.style.pointerEvents = 'none';
-        leftLabel.textContent = '自定义API优先';
-
-        const rightLabel = document.createElement('div');
-        rightLabel.style.position = 'absolute';
-        rightLabel.style.right = '10px';
-        rightLabel.style.top = '50%';
-        rightLabel.style.transform = 'translateY(-50%)';
-        rightLabel.style.fontSize = '12px';
-        rightLabel.style.color = '#999';
-        rightLabel.style.pointerEvents = 'none';
-        rightLabel.textContent = '官方API优先';
-
-        prioritySwitch.append(leftLabel, rightLabel, prioritySlider);
-
-        // 获取当前优先级设置
-        const currentPriority = lsGetItem(lsKeys.apiPriority.id);
-        const isOfficialFirst = currentPriority[0] === 'official';
-
-        function updatePrioritySwitch(officialFirst) {
-            if (officialFirst) {
-                prioritySlider.style.left = '102px';
-                prioritySlider.textContent = '官方API优先';
-                leftLabel.style.color = '#999';
-                rightLabel.style.color = 'white';
-            } else {
-                prioritySlider.style.left = '2px';
-                prioritySlider.textContent = '自定义API优先';
-                leftLabel.style.color = 'white';
-                rightLabel.style.color = '#999';
-            }
-        }
-
-        updatePrioritySwitch(isOfficialFirst);
-
-        prioritySwitch.onclick = () => {
-            const currentPriority = lsGetItem(lsKeys.apiPriority.id);
-            const newPriority = currentPriority[0] === 'official' ? ['custom', 'official'] : ['official', 'custom'];
-            lsSetItem(lsKeys.apiPriority.id, newPriority);
-            updatePrioritySwitch(newPriority[0] === 'official');
-            console.log('[API优先级] 切换为:', newPriority[0] === 'official' ? '官方API优先' : '自定义API优先');
-        };
-
-        priorityContainer.append(prioritySwitch);
-        apiSelectDiv.append(priorityContainer);
-
         const searchNameDiv = getById(eleIds.danmakuSearchNameDiv);
         searchNameDiv.append(embyInput({ id: eleIds.danmakuSearchName, value: window.ede.searchDanmakuOpts.animeName, type: 'search' }
             , doDanmakuSearchEpisode));
@@ -3084,6 +3005,46 @@
             extUrlDiv.append(embyALink(key), document.createTextNode(` 总量: ${val.length}`));
             extUrlsDiv.append(extUrlDiv);
         });
+    }
+
+    function buildCustomApiDiv() {
+        // API选择设置
+        const apiCheckboxListDiv = getById(eleIds.apiCheckboxListDiv);
+        // 官方API启用开关
+        apiCheckboxListDiv.append(embyCheckbox({ label: lsKeys.useOfficialApi.name }, lsGetItem(lsKeys.useOfficialApi.id), (checked) => {
+            lsSetItem(lsKeys.useOfficialApi.id, checked);
+        }));
+        // 自定义API启用开关
+        apiCheckboxListDiv.append(embyCheckbox({ label: lsKeys.useCustomApi.name }, lsGetItem(lsKeys.useCustomApi.id), (checked) => {
+            lsSetItem(lsKeys.useCustomApi.id, checked);
+        }));
+
+        // API优先级切换
+        getById(eleIds.apiPriorityDiv).append(
+            embyTabs(apiPriorityOpts, lsGetItem(lsKeys.apiPriority.id)[0], 'id', 'name', (value, tabIndex) => {
+                const currentPriority = lsGetItem(lsKeys.apiPriority.id);
+                const apiPriorityArr = apiPriorityOpts.map(opt => opt.id);
+                const newPriority = currentPriority[0] === apiPriorityArr[1]
+                    ? [apiPriorityArr[0], apiPriorityArr[1]]
+                    : [apiPriorityArr[1], apiPriorityArr[0]];
+                lsSetItem(lsKeys.apiPriority.id, newPriority);
+                console.log('[API优先级] 切换为:', newPriority[0] === apiPriorityOpts[0].id ? apiPriorityOpts[0].name : apiPriorityOpts[1].name);
+            })
+        );
+
+        // 添加自定义API地址输入框
+        getById(eleIds.customApiPrefixInputDiv).append(
+            embyInput({
+                    id: 'customApiPrefixInput',
+                    value: lsGetItem(lsKeys.customApiPrefix.id) || '',
+                    type: 'search'
+                }, null, (e) => {
+                    // 失焦自动保存
+                    const val = e.target.value.trim();
+                    lsSetItem(lsKeys.customApiPrefix.id, val);
+                    embyToast({ text: '自定义API地址已保存', secondaryText: val });
+                })
+        );
     }
 
     async function onEnterExtComment(e) {
@@ -3700,7 +3661,8 @@
         debugWrapper.append(embyCheckbox({ label: lsKeys.debugReverseDanmu.name }
             , lsGetItem(lsKeys.debugReverseDanmu.id), (checked) => {
                 lsSetItem(lsKeys.debugReverseDanmu.id, checked);
-                const comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
+                // const comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
+                const comments = window.ede.commentsOriginal;
                 comments.map(c => {
                     const values = c.p.split(',');
                     values[1]= { '6': '1', '1': '6', '5': '4', '4': '5' }[values[1]];
@@ -3712,7 +3674,7 @@
         ));
         const toggleDanmuColor = (checked, lsKey, colorFn) => {
             lsSetItem(lsKey.id, checked);
-            let comments = window.ede.danmuCache[window.ede.episode_info.episodeId];
+            let comments = window.ede.commentsOriginal;
             if (checked) {
                 window.ede._oriComments = structuredClone(comments);
                 comments = comments.map(c => {
@@ -3723,7 +3685,7 @@
                 console.log('已' + lsKey.name);
             } else {
                 comments = window.ede._oriComments;
-                window.ede.danmuCache[window.ede.episode_info.episodeId] = comments;
+                window.ede.commentsOriginal = comments;
                 console.log('已还原' + lsKey.name);
             }
             createDanmaku(comments);
@@ -3738,6 +3700,31 @@
             , lsGetItem(lsKeys.debugForceDanmuWhite.id), (checked) => {
                 toggleDanmuColor(checked, lsKeys.debugForceDanmuWhite
                     , () => parseInt(styles.colors.info.toString(16).padStart(6, '0'), 16));
+            }
+        ));
+        const toggleTopBottomToScroll = (checked, lsKey) => {
+            lsSetItem(lsKey.id, checked);
+            let comments = window.ede.commentsOriginal;
+            if (checked) {
+                window.ede._oriComments = structuredClone(comments);
+                comments = comments.map(c => {
+                    const values = c.p.split(',');
+                    if (values[1] === '4' || values[1] === '5') {
+                        values[1] = '1'; // 改为从右往左滚动
+                    }
+                    return { ...c, p: values.join() };
+                });
+                console.log('已' + lsKey.name);
+            } else {
+                comments = window.ede._oriComments;
+                window.ede.commentsOriginal = comments;
+                console.log('已还原' + lsKey.name);
+            }
+            createDanmaku(comments);
+        };
+        debugWrapper.append(embyCheckbox({ label: lsKeys.debugTopBottomToScroll.name }
+            , lsGetItem(lsKeys.debugTopBottomToScroll.id), (checked) => {
+                toggleTopBottomToScroll(checked, lsKeys.debugTopBottomToScroll);
             }
         ));
         // debugWrapper.append(embyCheckbox({ label: lsKeys.debugGenerateLarge.name }, lsGetItem(lsKeys.debugGenerateLarge.id), (checked) => {
@@ -3808,8 +3795,7 @@
         // lsKeys.debugTabIframeEnable
         if (lsGetItem(lsKeys.quickDebugOn.id)) { // @deprecated 已废弃,因跨域无法登录网站,无太大意义
             debugWrapper.append(embyCheckbox({ label: lsKeys.debugTabIframeEnable.name }
-                , lsGetItem(lsKeys.debugTabIframeEnable.id), (checked) => {
-                    lsSetItem(lsKeys.debugTabIframeEnable.id, checked);
+                , false, (checked) => {
                     getById(tabIframeId + 'Btn').style.display = checked ? '' : 'none';
                 }
             ));
@@ -3825,6 +3811,63 @@
                 }
             ));
         }
+        // lsKeys.debugDanmuAnywhereEnable
+        if (lsGetItem(lsKeys.quickDebugOn.id)) { 
+            debugWrapper.append(embyCheckbox({ label: lsKeys.debugDanmuAnywhereEnable.name }
+                , false, (checked) => {
+                    if (checked) {
+                        const bodyEle = document.body;
+                        const media = document.createElement('video');
+                        media.id = 'test-media';
+                        const containerEle = document.createElement('div');
+                        containerEle.id = 'test-media-container';
+                        containerEle.className = mediaContainerQueryStr.replace('.', '');
+                        containerEle.style.position = 'fixed';
+                        containerEle.style.zIndex = '255';
+                        containerEle.prepend(media);
+                        bodyEle.prepend(containerEle);
+                        media.play();
+                        setInterval(() => {
+                            media.currentTime += 100 / 1e3;
+                            media.dispatchEvent(new Event('timeupdate'));
+                        }, 100);
+                        createDanmaku(generateRandomDanmu(50000, 600))
+                            .then(() => {
+                                console.log('弹幕就位');
+                            })
+                            .catch((err) => {
+                                console.log(err);
+                            });
+                    } else {
+                        if (window.ede.danmaku) {
+                            window.ede.danmaku.destroy();
+                            window.ede.danmaku = null;
+                        }
+                        getById('test-media-container')?.remove();
+                    }
+                }
+            ));
+        }
+    }
+
+    function generateRandomDanmu(count, duration) {
+        count = count || 10000;
+        duration = duration || 600;
+        const comments = [];
+        const modes = [1, 4, 5, 6]; // 1=rtl, 6=ltr, 5=top, 4=bottom
+        for (let i = 0; i < count; i++) {
+            const time = parseFloat((Math.random() * duration).toFixed(2));
+            const mode = modes[Math.floor(Math.random() * modes.length)];
+            const color = Math.floor(Math.random() * 16777216); 
+            const p = time + ',' + mode + ',' + color + ',0';
+            const cid = 1000000000 + i;
+            comments.push({
+                cid: cid,
+                p: p,
+                m: '这是第' + (i + 1) + '条弹幕'
+            });
+        }
+        return comments;
     }
 
     function buildDebugButton(container) {
@@ -3857,11 +3900,11 @@
                 }
             }
         }));
-        debugWrapper.append(embyButton({ label: '清空章节引用缓存', class: classes.embyButtons.submit, style: 'margin: 0.3em;' }, () => {
-            lsBatchRemove([lsLocalKeys.animeEpisodePrefix, lsLocalKeys.bangumiEpInfoPrefix]);
-            console.log('已清空章节引用缓存');
-            embyToast({ text: '已清空章节引用缓存' });
-        }));
+        // debugWrapper.append(embyButton({ label: '清空章节引用缓存', class: classes.embyButtons.submit, style: 'margin: 0.3em;' }, () => {
+        //     lsBatchRemove([lsLocalKeys.animeEpisodePrefix, lsLocalKeys.bangumiEpInfoPrefix]);
+        //     console.log('已清空章节引用缓存');
+        //     embyToast({ text: '已清空章节引用缓存' });
+        // }));
         debugWrapper.append(embyButton({ label: '重置设置', class: classes.embyButtons.submit, style: 'margin: 0.3em;' }, () => {
             settingsReset();
             console.log(`已重置设置, 跳过了 ${lsKeys.filterKeywords.name} 重置`);
@@ -4147,7 +4190,7 @@
             if (apiKey === 'custom') return useCustomApi;
             return false;
         });
-        const unique_episode_key = `_api_${enabledApis.join('_')}_` + _episode_key;
+        const unique_episode_key = lsLocalKeys.apiPrefix + `${enabledApis.join('_')}_` + _episode_key;
         localStorage.setItem(unique_episode_key, JSON.stringify(episodeInfo));
 
         console.log(`手动匹配成功，已加载新弹幕信息:`, episodeInfo);
