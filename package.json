@@ -14,7 +14,7 @@
     "cross-env": "^10.1.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/season-matching.test.js",
     "build:android9": "cross-env BROWSERSLIST_ENV=android9 babel ede.js --out-file dist/ede.android9.js",
     "build:android7": "cross-env BROWSERSLIST_ENV=android7 babel ede.js --out-file dist/ede.android7.js"
   },
